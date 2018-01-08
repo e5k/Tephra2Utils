@@ -57,16 +57,16 @@ end
 
 % Prepare the data
 data    = data(:,1:4);                  % Remove GS data
-data    = sortrows(data, [2,1]);        % Sort along northing
+data    = sortrows(data, [1,2]);        % Sort along northing
 
 % Define grid size
 xn      = length(unique(data(:,1)));    % Number of easting values
 yn      = length(unique(data(:,2)));    % Number of northing values
 
 % Reshape data into a grid
-E       = reshape(data(:,1), xn, yn);
-N       = reshape(data(:,2), xn, yn);
-M       = reshape(data(:,4), xn, yn);
+E       = reshape(data(:,1), yn, xn);
+N       = reshape(data(:,2), yn, xn);
+M       = reshape(data(:,4), yn, xn);
 
 M(M<cnt(1)) = nan;                      % Remove low values
 
@@ -105,8 +105,9 @@ else
 end
 
 % Plot figure
+res         = (XX(1,2)-XX(1,1))/2;
 figure;
-hd          = pcolor(XX,YY,M); shading flat; hold on;
+hd          = pcolor(XX-res,YY-res,M); shading flat; hold on;
 [c,h]       = contour(XX,YY,M,cnt, 'Color', 'k');
 clabel(c,h, cnt, 'LabelSpacing', 1000, 'FontWeight', 'bold')
 set(hd, 'FaceAlpha', 0.5)
@@ -132,6 +133,8 @@ c = colorbar;
 ylabel(c, zl);
 xlabel(xl);
 ylabel(yl);
+
+set(gca, 'Layer', 'top');
 
 %% Prepare output
 % If lat/lon, output as arguments 4 and 5
