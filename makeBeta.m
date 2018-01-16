@@ -37,16 +37,14 @@ figure;
 subplot(2,1,1)
 plot(stor(:,:,1).*100, h);
 grid on
-xlabel('Probability of release (%)');
+xlabel('Release PDF (%)');
 ylabel('Plume height')
 legend(leg)
 grid on
-title('PDF')
 
 subplot(2,1,2)
 plot(stor(:,:,2).*100, h);
 grid on
-xlabel('Cummulative robability of release (%)');
+xlabel('Release CDF (%)');
 ylabel('Plume height')
 grid on
-title('CDF')
