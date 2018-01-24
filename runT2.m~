@@ -167,7 +167,7 @@ for iConf = 1:sConf
         for iWind = 1:sWind
             for iTgsd = 1:sTgsd;
                 idxStor(count,:) = [iConf, iGrid iWind, iTgsd];
-                T2Stor{count}    = ['./tephra2-2012 ', run.name, filesep, 'CONF', filesep, conf.N{iConf}, ' ', run.name, filesep, 'GRID', filesep, grid.N{iGrid}, ' ', run.name, filesep, 'WIND', filesep, wind.N{iWind}, ' ', run.name, filesep, 'TGSD', filesep, tgsd.N{iTgsd}, ' > ', run.name, filesep, 'OUT', filesep, num2str(count, '%5.0f'), '.out'];
+                T2Stor(count)    = ['./tephra2-2012 ', conf.N{iConf}, ' ',]
                 count = count+1;
             end
         end
@@ -176,7 +176,7 @@ end
 
 
 
-a
+
 
 
 
