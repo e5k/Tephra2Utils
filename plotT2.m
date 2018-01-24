@@ -30,19 +30,25 @@ plt     = 'log';
 cnt     = [.1, 1, 10, 100, 1000];
 GISname = [];
 
-for i = 1:length(varargin)
-    if strcmpi(varargin{i}, 'zone')
-        zone = varargin{i+1};
-        i = i+1;
-    elseif strcmpi(varargin{i}, 'plot')
-        plt = varargin{i+1};
-        i = 1+1;
-    elseif strcmpi(varargin{i}, 'contours')
-        cnt = varargin{i+1};
-        i = 1+1;
-    elseif strcmpi(varargin{i}, 'outName')
-        GISname = varargin{i+1};
-        i = 1+1;
+if nargin == 0
+    [flName,dirName] = uigetfile('*.*', 'Select the Tephra2 output file');
+    if flName == 0; return; end
+    data = fullfile(dirName, flName);
+else
+    for i = 1:length(varargin)
+        if strcmpi(varargin{i}, 'zone')
+            zone = varargin{i+1};
+            i = i+1;
+        elseif strcmpi(varargin{i}, 'plot')
+            plt = varargin{i+1};
+            i = 1+1;
+        elseif strcmpi(varargin{i}, 'contours')
+            cnt = varargin{i+1};
+            i = 1+1;
+        elseif strcmpi(varargin{i}, 'outName')
+            GISname = varargin{i+1};
+            i = 1+1;
+        end
     end
 end
 

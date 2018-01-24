@@ -9,8 +9,8 @@ run.mass    = 0;                % 0: Mass if specified
                                 
 grid.xLim   = [-50000 250000];  % X limits (UTM, m)
 grid.yLim   = [-75000 75000];   % Y limits (UTM, m)
-grid.res    = [1000,2000];             % Grid resolution (m)
-grid.elev   = [0,10];                % Mean elevation
+grid.res    = [1000];             % Grid resolution (m)
+grid.elev   = [0];                % Mean elevation
 grid.zone   = [];               % Zone
 
 vent.x      = 0;
@@ -21,7 +21,7 @@ wind.pth    = [];               % If not empty, then use it
 wind.dir    = 90;               % Degree from North, wind direction
 wind.trop   = 12000;            % Tropopause height (m asl)
 wind.strat  = 15000;            % Stratosphere height (m asl)
-wind.vel    = [5:5:30];         % Velocity at tropopause (m/s)
+wind.vel    = 5:5:15;           % Velocity at tropopause (m/s)
 wind.model  = 1;                % 1: WM1 of Bonadonna and Phillips
                                 % 2: WM2 of Bonadonna and Phillips
 
@@ -32,13 +32,13 @@ tgsd.agg    = 0.5;
 tgsd.minD   = 5;
 
 
-conf.plumeHeight   = [1000, 2500, 5000:5000:30000];
+conf.plumeHeight   = 5000:5000:20000;
 conf.mass          = 1e10;
 conf.duration      = 1; % Hours
 conf.eddyConst     = 0.04;
 conf.diffCoef      = 112;
 conf.ftt           = 1563;
-conf.lithDens      = [2600,3000];
+conf.lithDens      = 2600;
 conf.pumDens       = 513;
 conf.colStep       = 50;
 conf.partStep      = 50;
@@ -165,20 +165,21 @@ count   = 1;
 for iConf = 1:sConf
     for iGrid = 1:sGrid
         for iWind = 1:sWind
-            for iTgsd = 1:sTgsd;
+            for iTgsd = 1:sTgsd
                 idxStor(count,:) = [iConf, iGrid iWind, iTgsd];
-                T2Stor{count}    = ['./tephra2-2012 ', run.name, filesep, 'CONF', filesep, conf.N{iConf}, ' ', run.name, filesep, 'GRID', filesep, grid.N{iGrid}, ' ', run.name, filesep, 'WIND', filesep, wind.N{iWind}, ' ', run.name, filesep, 'TGSD', filesep, tgsd.N{iTgsd}, ' > ', run.name, filesep, 'OUT', filesep, num2str(count, '%5.0f'), '.out'];
+                if ispc
+                    T2Stor{count}    = ['tephra2-2012 ', run.name, filesep, 'CONF', filesep, conf.N{iConf}, ' ', run.name, filesep, 'GRID', filesep, grid.N{iGrid}, ' ', run.name, filesep, 'WIND', filesep, wind.N{iWind}, ' ', run.name, filesep, 'TGSD', filesep, tgsd.N{iTgsd}, ' > ', run.name, filesep, 'OUT', filesep, num2str(count, '%5.0f'), '.out'];
+                else
+                    T2Stor{count}    = ['./tephra2-2012 ', run.name, filesep, 'CONF', filesep, conf.N{iConf}, ' ', run.name, filesep, 'GRID', filesep, grid.N{iGrid}, ' ', run.name, filesep, 'WIND', filesep, wind.N{iWind}, ' ', run.name, filesep, 'TGSD', filesep, tgsd.N{iTgsd}, ' > ', run.name, filesep, 'OUT', filesep, num2str(count, '%5.0f'), '.out'];
+                end
                 count = count+1;
             end
         end
     end
 end
 
-
-
-a
-
-
+compileT2;
+runIt(T2Stor);
 
 % Cleanup
 elements  = elements(~cellfun(@isempty, elements));
@@ -203,7 +204,6 @@ struc.N  = makeName(struc.N, struc.elem, fl, ext);
 for i = 1:length(struc.elem)
     struc.P.(struc.elem{i}) = struc.Pt(:,i);
 end
-
 
 % Create file names
 function outN = makeName(N, elem, fl, ext)
@@ -275,9 +275,8 @@ wt(wt==wt(end)) = 1;
 
 dlmwrite(name, [diam', wt'], 'delimiter', '\t', 'precision', 4);
 
-
+% Write configuration files
 function makeConf(conf, vent, name)
-
 for i = 1:size(conf.N,1)
     fid = fopen(fullfile(name, 'CONF', conf.N{i}), 'wt');
     fprintf(fid,...
@@ -298,3 +297,73 @@ for i = 1:size(conf.N,1)
     fclose(fid);
 end
 
+% Compile Tephra2
+function compileT2
+% Retrieve path
+pth     = pwd;
+mod_pth = [pwd, filesep, 'Tephra2', filesep, 'forward_src', filesep];
+
+% On PCs, add the Cygwin folder to the PATH environment
+if ispc
+    path1 = getenv('PATH');
+    if strcmp(computer('arch'), 'win64')
+        pathC = 'C:\cygwin64\bin';
+    elseif strcmp(computer('arch'), 'win32')
+        pathC = 'C:\cygwin\bin';
+    end
+        
+    if isempty(regexp(path1,pathC,'once'))
+        if isdir(pathC)
+            setenv('PATH', [path1,';',pathC]);
+        else
+            choice = questdlg('Did you already install CYGWIN?', ...
+                'CYGWIN', ...
+                'Yes','No','Yes');
+            % Handle response
+            switch choice
+                case 'Yes'
+                    fname = uigetdir('C:\', 'Select the cygwin\bin directory');
+                    setenv('PATH', [path1,';',fname]);
+                case 'No'
+                    url('https://cygwin.com/install.html');
+                    return
+            end
+        end
+    end
+end
+        
+
+% Compiles the model and runs it
+cd(mod_pth);                            % Navigates to the makefile
+system('make clean');
+[stat, cmd_out] = system('make');       % Compiles TEPHRA2
+
+if stat == 0                            % If compilation ok
+    cd(pth);
+    tmp = dir('Tephra2/tephra2-2012*');
+    movefile(['Tephra2/', tmp(1).name], pth);
+else
+    cd(pth);
+    error('There was a problem compiling TEPHRA2...\n%s\n', cmd_out);
+end
+
+% Run Tephra2
+function runIt(stor)
+
+if license('test','Distrib_Computing_Toolbox')
+    parfor i = 1:size(stor,1)
+        display(['Run ', num2str(i), '/',num2str(size(stor,1))]);
+        system(stor{i});
+        home;
+    end
+else 
+    for i = 1:size(stor,1)
+        display(['Run ', num2str(i), '/',num2str(size(stor,1))]);
+        system(stor{i});
+        home;
+    end
+end
+home;
+delete('node_');
+delete('plume2.dat');
+disp('Modelling finished!');
