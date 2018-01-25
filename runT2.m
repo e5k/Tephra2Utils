@@ -1,5 +1,5 @@
-function runT2(varargin)
-
+function data = runT2(varargin)
+    
 run.name    = 'test';
 run.mode    = 0;                % 0: Deterministic
                                 % 1: Probabilistic
@@ -45,7 +45,16 @@ conf.partStep      = 50;
 conf.plumeAlpha    = 3;
 conf.plumeBeta     = 2;
 
-
+if nargin == 1 && isstruct(varargin{1})
+    data    = varargin{1};
+    run     = data.run;
+    grid    = data.grid;
+    vent    = data.vent;
+    wind    = data.wind;
+    tgsd    = data.tgsd;
+    conf    = data.conf;
+end
+    
 %% Prepare output
 mkdir(run.name);
 mkdir(fullfile(run.name, 'CONF'));
@@ -66,7 +75,7 @@ elemS   = elemC;                                    % Start counter
 [elements, elementsN, elemC, grid] ...
         = prepareInput(elements, elementsN, elemS, elemC, grid, 'grid', '.grd');
 
-for i = 1:size(grid.P,1)
+for i = 1:length(grid.P.res)
     makeGrid(grid.xLim(1):grid.P.res(i):grid.xLim(2),...
         grid.yLim(1):grid.P.res(i):grid.yLim(2),...
         grid.P.elev(i),...
@@ -82,7 +91,7 @@ if isempty(wind.pth)
     [elements, elementsN, elemC, wind] ...
             = prepareInput(elements, elementsN, elemS, elemC, wind, 'wind', '.wnd');
     
-    for i = 1:size(wind.P,1)
+    for i = 1:length(wind.P.dir)
         makeWindProfile(wind.P.dir(i), wind.P.vel(i), wind.P.trop(i), wind.P.strat(i), wind.P.model(i), fullfile(run.name, 'WIND', wind.N{i}));
     end
 end
@@ -96,7 +105,7 @@ if isempty(tgsd.pth)
     [elements, elementsN, elemC, tgsd] ...
             = prepareInput(elements, elementsN, elemS, elemC, tgsd, 'tgsd', '.gsd');
     
-    for i = 1:size(tgsd.P,1)
+    for i = 1:length(tgsd.P.med)
         makeTGSD(tgsd.P.med(i), tgsd.P.std(i), tgsd.P.agg(i), tgsd.P.minD(i), fullfile(run.name, 'TGSD', tgsd.N{i}));
     end
 end
@@ -180,6 +189,13 @@ end
 
 compileT2;
 runIt(T2Stor);
+
+data.run    = run;
+data.grid   = grid;
+data.vent   = vent;
+data.wind   = wind;
+data.tgsd   = tgsd;
+data.conf   = conf;
 
 % Cleanup
 elements  = elements(~cellfun(@isempty, elements));
