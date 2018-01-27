@@ -45,7 +45,8 @@ conf.partStep      = 50;
 conf.plumeAlpha    = 3;
 conf.plumeBeta     = 2;
 
-if nargin == 1 && isstruct(varargin{1})
+% Check input structure
+if nargin > 0 && isstruct(varargin{1})
     data    = varargin{1};
     run     = data.run;
     grid    = data.grid;
@@ -55,6 +56,13 @@ if nargin == 1 && isstruct(varargin{1})
     conf    = data.conf;
 end
     
+% Check compilation
+if nnz(strcmp(varargin,'-compile')) > 0
+    compile = 1;
+else
+    compile = 0;
+end
+
 %% Prepare output
 mkdir(run.name);
 mkdir(fullfile(run.name, 'CONF'));
@@ -187,7 +195,9 @@ for iConf = 1:sConf
     end
 end
 
-compileT2;
+if compile == 1
+    compileT2;
+end
 runIt(T2Stor);
 
 data.run    = run;
