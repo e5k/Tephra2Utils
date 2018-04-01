@@ -5,7 +5,3 @@ get_MER_DB12.m
 *.pdf
 *.grd
 *.out
-*.wnd
-*.eps
-*.mat
-*.gsd

@@ -1,4 +1,4 @@
-function varargout = plotT2(data, varargin)
+function [E,N,M,Carea,Pmass,cont,varargout] = plotT2(data, varargin)
 % PLOTT2(path_to_file, ...)
 % The function PLOTT2 plots the output of Tephra2 on a map
 % path_to_file is a string containing the path to the output file
@@ -17,16 +17,16 @@ function varargout = plotT2(data, varargin)
 % - 'noplot':   Does not display a map
 %
 % Outputs
-% [E,N,M]           = plotT2(...)
-%               Return gridded easting, northing and accumulation
-% [E,N,M,Lat,Lon]   = plotT2(...)
+% [E,N,M,A]         = plotT2(...)
+%               Return gridded easting, northing, mass accumulation and isomass areas (km2)
+% [E,N,M,A,Lat,Lon] = plotT2(...)
 %               If 'zone' is specified, also returns the gridded latitude/longitude
 %
 % Examples
-% [E,N,M]           = plotT2('example.out');
-% [E,N,M,LAT,LON]   = plotT2('example.out', 'zone', 18);
-% [E,N,M]           = plotT2('example.out', 'plot', 'linear');
-% [E,N,M]           = plotT2('example.out', 'contours', [10, 50, 100]);
+% [E,N,M,A]         = plotT2('example.out');
+% [E,N,M,A,LAT,LON] = plotT2('example.out', 'zone', 18);
+% [E,N,M,A]         = plotT2('example.out', 'plot', 'linear');
+% [E,N,M,A]         = plotT2('example.out', 'contours', [10, 50, 100]);
 
 %% Parse optional input arguments
 zone    = [];
@@ -83,7 +83,7 @@ E       = reshape(data(:,1), yn, xn);
 N       = reshape(data(:,2), yn, xn);
 M       = reshape(data(:,4), yn, xn);
 
-M(M<cnt(1)) = nan;                      % Remove low values
+%M(M<cnt(1)) = nan;                      % Remove low values
 
 % If a UTM zone is passed, convert to lat/lon
 if ~isempty(zone)
@@ -95,6 +95,10 @@ if ~isempty(zone)
         warning('The function utm2ll is not available. Download it from https://www.mathworks.com/matlabcentral/fileexchange/45699-ll2utm-and-utm2ll');
     end
 end
+
+% Retrieve the area and the mass at each isomass
+[Carea, Pmass, cont] = getArea(E(1,:), M, cnt);
+
 
 %% Plot
 % Define if projected or geographic
@@ -155,11 +159,50 @@ if noPlot == 0
 end
 
 %% Prepare output
-if nargout >0 && nargout <= 1        
-                        varargout{1} = E;
-elseif nargout <= 2;    varargout{2} = N;
-elseif nargout <= 3;    varargout{3} = M;
-elseif nargout <= 4 && exist('LT', 'var');
-    varargout{1} = LT;
-    varargout{2} = LN;
+
+if nargout > 0
+    varargout = cell(nargout,1);
+    for i = 1:nargout
+        if      i == 1; varargout{i} = E;
+        elseif  i == 2; varargout{i} = N;
+        elseif  i == 3; varargout{i} = M;
+        elseif  i == 4 && exist('LT', 'var'); varargout{i} = LT;
+        elseif  i == 5 && exist('LT', 'var'); varargout{i} = LN;
+        end
+    end
 end
+
+
+
+% Calculates the area for all contours
+function [Carea, Pmass, cont] = getArea(E, M, cnt)
+ 
+res = E(1,2)-E(1,1);
+Carea = zeros(numel(cnt),1);
+Pmass = zeros(numel(cnt),1);
+
+for i = 1:numel(cnt)
+    idx = M>=cnt(i);
+    Carea(i) = (nnz(idx).*res^2)/1e6;
+    Pmass(i) = sum(M(idx)).*res^2;
+    % Check that a given contour isn't truncated
+    if nnz(idx(1,:))>0 | nnz(idx(end,:))>0 | nnz(idx(:,1))>0 | nnz(idx(:,end))>0 
+        Carea(i) = nan;
+        Pmass(i) = nan;
+        warning('The contour %d extends outside of the domain', cnt(i));
+    end
+    % Check if the contour exists
+    if nnz(idx) == 0
+        Carea(i) = nan;
+        Pmass(i) = nan;
+        warning('The contour %d does not exist', cnt(i));
+%     else
+%         Carea(i) = (nnz(idx).*res^2)/1e6;
+%         Pmass(i) = sum(M(idx)).*res^2;
+    end
+end
+
+idx = isnan(Carea);
+Carea(idx) = [];
+Pmass(idx) = [];
+cont       = cnt(~idx);

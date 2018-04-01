@@ -7,7 +7,7 @@ run.mass    = 0;                % 0: Mass if specified
                                 % 1: Mass computed from height, wind and duration
                                 % 2: Mass computed from thermal theory - to add
 
-grid.pth    = {'1.grd','2.grd'};               %                                 
+grid.pth    = [];               %                                 
 grid.xLim   = [-50000 250000];  % X limits (UTM, m)
 grid.yLim   = [-75000 75000];   % Y limits (UTM, m)
 grid.res    = [1000];           % Grid resolution (m)
@@ -79,7 +79,7 @@ elemC       = 1;
 %% Grid
 grid.elem    = {'res', 'elev'};                          % Variable name
 grid.elemF   = {'Grid resolution', 'Grid elevation'};    % Full name
-elemS   = elemC;                                         % Start counter
+elemS   = elemC;                                    % Start counter
 
 [elements, elementsN, elemC, grid] ...
         = prepareInput(elements, elementsN, elemS, elemC, grid, 'grid', '.grd');
