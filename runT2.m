@@ -7,11 +7,11 @@ run.mass    = 0;                % 0: Mass if specified
                                 % 1: Mass computed from height, wind and duration
                                 % 2: Mass computed from thermal theory - to add
 
-grid.pth    = {'1.grd','2.grd'};               %                                 
+grid.pth    = 'gr';%{'1.grd','2.grd'};               %                                 
 grid.xLim   = [-50000 250000];  % X limits (UTM, m)
 grid.yLim   = [-75000 75000];   % Y limits (UTM, m)
-grid.res    = [1000];           % Grid resolution (m)
-grid.elev   = [0];              % Mean elevation
+grid.res    = [1000,2000];           % Grid resolution (m)
+grid.elev   = [0,100];              % Mean elevation
 grid.zone   = [];               % Zone
 
 vent.x      = 0;
@@ -32,7 +32,7 @@ tgsd.std    = 2;
 tgsd.agg    = 0.5;
 tgsd.minD   = 5;
 
-
+conf.pth           = [];
 conf.plumeHeight   = 5000:5000:20000;
 conf.mass          = 1e10;
 conf.duration      = 1; % Hours
@@ -77,19 +77,38 @@ elementsN   = cell(30,1);
 elemC       = 1;
 
 %% Grid
-grid.elem    = {'res', 'elev'};                          % Variable name
-grid.elemF   = {'Grid resolution', 'Grid elevation'};    % Full name
-elemS   = elemC;                                         % Start counter
-
-[elements, elementsN, elemC, grid] ...
-        = prepareInput(elements, elementsN, elemS, elemC, grid, 'grid', '.grd');
-
-for i = 1:length(grid.P.res)
+elemS   = elemC; % Start counter
+% In case the path to the grid files is specified
+if ~isempty(grid.pth)
+    grid.elem    = {'pth'};
+    grid.elemF   = {'Grid name'};
+    
+    % Check if the path is a directory
+    if isdir(grid.pth)
+        grid.pth = dir2pth(grid.pth);  
+    end
+    
+    [elements, elementsN, elemC, grid] ...
+        = prepareInput(elements, elementsN, elemS, elemC, grid, 'grid', '.grd',1);
+% Else get combinations and create grids
+else
+    grid.elem    = {'res', 'elev'};                          % Variable name
+    grid.elemF   = {'Grid resolution', 'Grid elevation'};    % Full name
+    [elements, elementsN, elemC, grid] ...
+        = prepareInput(elements, elementsN, elemS, elemC, grid, 'grid', '.grd',0);
+    
+    % Create grids
+    for i = 1:length(grid.P.res)
     makeGrid(grid.xLim(1):grid.P.res(i):grid.xLim(2),...
         grid.yLim(1):grid.P.res(i):grid.yLim(2),...
         grid.P.elev(i),...
         fullfile(run.name, 'GRID', grid.N{i}));
+    end
 end
+                                         
+
+
+
 
 %% Wind
 if isempty(wind.pth)
@@ -98,11 +117,13 @@ if isempty(wind.pth)
     elemS   = elemC; % Start counter
 
     [elements, elementsN, elemC, wind] ...
-            = prepareInput(elements, elementsN, elemS, elemC, wind, 'wind', '.wnd');
+            = prepareInput(elements, elementsN, elemS, elemC, wind, 'wind', '.wnd',0);
     
     for i = 1:length(wind.P.dir)
         makeWindProfile(wind.P.dir(i), wind.P.vel(i), wind.P.trop(i), wind.P.strat(i), wind.P.model(i), fullfile(run.name, 'WIND', wind.N{i}));
     end
+else
+    
 end
     
 %% TGSD
@@ -112,7 +133,7 @@ if isempty(tgsd.pth)
     elemS   = elemC;
 
     [elements, elementsN, elemC, tgsd] ...
-            = prepareInput(elements, elementsN, elemS, elemC, tgsd, 'tgsd', '.gsd');
+            = prepareInput(elements, elementsN, elemS, elemC, tgsd, 'tgsd', '.gsd',0);
     
     for i = 1:length(tgsd.P.med)
         makeTGSD(tgsd.P.med(i), tgsd.P.std(i), tgsd.P.agg(i), tgsd.P.minD(i), fullfile(run.name, 'TGSD', tgsd.N{i}));
@@ -138,7 +159,7 @@ conf.elemF   = varF(idxE);
 elemS        = elemC;
 
 [~,~,~, conf] ...
-    = prepareInput(elements, elementsN, elemS, elemC, conf, 'conf', '.conf');
+    = prepareInput(elements, elementsN, elemS, elemC, conf, 'conf', '.conf',0);
 
 % Calculate MER
 MER = zeros(length(conf.P.plumeHeight),1);
@@ -164,7 +185,6 @@ elseif run.mass == 1
 end
 
 makeConf(conf, vent, run.name);
-
 
 %% Run the hard way
 sConf = size(conf.N, 1);
@@ -195,13 +215,19 @@ for iConf = 1:sConf
                 for i = 1:length(wind.elem); masterRun.(wind.elem{i})(count) = wind.P.(wind.elem{i})(iWind); end
                 for i = 1:length(tgsd.elem); masterRun.(tgsd.elem{i})(count) = tgsd.P.(tgsd.elem{i})(iTgsd); end
                 
-                
-                
                 idxStor(count,:) = [iConf, iGrid iWind, iTgsd];
-                if ispc
-                    T2Stor{count}    = ['tephra2-2012 ', run.name, filesep, 'CONF', filesep, conf.N{iConf}, ' ', run.name, filesep, 'GRID', filesep, grid.N{iGrid}, ' ', run.name, filesep, 'WIND', filesep, wind.N{iWind}, ' ', run.name, filesep, 'TGSD', filesep, tgsd.N{iTgsd}, ' > ', run.name, filesep, 'OUT', filesep, num2str(count, '%5.0f'), '.out'];
-                else
-                    T2Stor{count}    = ['./tephra2-2012 ', run.name, filesep, 'CONF', filesep, conf.N{iConf}, ' ', run.name, filesep, 'GRID', filesep, grid.N{iGrid}, ' ', run.name, filesep, 'WIND', filesep, wind.N{iWind}, ' ', run.name, filesep, 'TGSD', filesep, tgsd.N{iTgsd}, ' > ', run.name, filesep, 'OUT', filesep, num2str(count, '%5.0f'), '.out'];
+                
+                % Adapts file path
+                if isempty(grid.pth); gridP = [run.name, filesep, 'GRID', filesep]; else; gridP = []; end
+                if isempty(wind.pth); windP = [run.name, filesep, 'WIND', filesep]; else; windP = []; end
+                if isempty(tgsd.pth); tgsdP = [run.name, filesep, 'TGSD', filesep]; else; tgsdP = []; end
+                if isempty(conf.pth); confP = [run.name, filesep, 'CONF', filesep]; else; confP = []; end
+
+                T2Stor{count}    = ['tephra2-2012 ', confP, conf.N{iConf}, ' ', gridP, grid.N{iGrid}, ' ', windP, wind.N{iWind}, ' ', tgsdP, tgsd.N{iTgsd}, ' > ', run.name, filesep, 'OUT', filesep, num2str(count, '%5.0f'), '.out'];
+                
+                % Appends ./ on unix
+                if ~ispc
+                    T2Stor{count}    = ['./', T2Stor{count}];
                 end
                 count = count+1;
             end
@@ -254,16 +280,25 @@ data.runlist = stor;
 
 % For each of grid, conf, gs and wind, return the all the combinations of
 % variables and generate file names
-function  [elements, elementsN, elemC, struc] = prepareInput(elements, elementsN, elemS, elemC, struc, fl, ext)
+% type defines if filenames are input (1) or values (0)
+function  [elements, elementsN, elemC, struc] = prepareInput(elements, elementsN, elemS, elemC, struc, fl, ext, type)
 for i = 1:length(struc.elem)
     elements{elemC}     = struc.(struc.elem{i});
     elementsN{elemC}    = struc.elemF{i};
     elemC               = elemC+1;
 end
-struc.Pt  = makePossibilities(elements(elemS:elemC-1));   
-struc.N  = cellfun(@num2str, num2cell(struc.Pt), 'UniformOutput', false);
-struc.N  = makeName(struc.N, struc.elem, fl, ext);
 
+% Create combinations
+if type == 0
+    struc.Pt  = makePossibilities(elements(elemS:elemC-1));   
+    struc.N   = cellfun(@num2str, num2cell(struc.Pt), 'UniformOutput', false);
+    struc.N   = makeName(struc.N, struc.elem, fl, ext);
+% Else use file path
+else
+    struc.Pt = elements{elemS:elemC-1};
+    struc.N  = elements{elemS:elemC-1};
+    struc.Pt = (1:numel(struc.Pt))';
+end
 % Here convert all variables into structure fields
 for i = 1:length(struc.elem)
     struc.P.(struc.elem{i}) = struc.Pt(:,i);
@@ -415,6 +450,10 @@ end
 function runIt(stor)
 
 if license('test','Distrib_Computing_Toolbox')
+    %n=str2num(getenv('SLURM_CPUS_PER_TASK'));
+    % create a parpool
+    %parpool(n);
+    %parpool(4)
     parfor i = 1:size(stor,1)
         display(['Run ', num2str(i), '/',num2str(size(stor,1))]);
         system(stor{i});
@@ -431,3 +470,9 @@ home;
 delete('node_');
 delete('plume2.dat');
 disp('Modelling finished!');
+
+% Converts a directory to a cell array to files
+function names = dir2pth(pth)
+fl    = dir(pth);
+names = {fl.name};
+names = names{~[fl.isdir]};

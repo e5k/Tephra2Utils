@@ -9,3 +9,6 @@ get_MER_DB12.m
 *.eps
 *.mat
 *.gsd
+.DS_Store
+Working/
+*.o

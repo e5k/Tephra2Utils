@@ -89,8 +89,8 @@ M       = reshape(data(:,4), yn, xn);
 if ~isempty(zone)
     if exist('utm2ll.m', 'file')
         [LT,LN] = utm2ll(data(:,1), data(:,2), zone);
-        LT = reshape(LT, xn, yn);
-        LN = reshape(LN, xn, yn);
+        LT = reshape(LT, yn, xn);
+        LN = reshape(LN, yn, xn);
     else
         warning('The function utm2ll is not available. Download it from https://www.mathworks.com/matlabcentral/fileexchange/45699-ll2utm-and-utm2ll');
     end
@@ -139,7 +139,7 @@ if noPlot == 0
         % Plot grid extent
         gX = [XX(1,1), XX(1,end), XX(end,end), XX(end,1), XX(1,1)];
         gY = [YY(1,1), YY(1,end), YY(end,end), YY(end,1), YY(1,1)];
-        plot(gX, gY, '-r', 'linewidth',0.5);
+        plot(gX-res, gY-res, '-r', 'linewidth',0.5);
 
     elseif ~exist('plot_google_map', 'file') && exist('LT', 'var')
         warning('The function plot_google_map is not available. Download it from https://uk.mathworks.com/matlabcentral/fileexchange/27627-zoharby-plot-google-map');
