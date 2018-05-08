@@ -1,3 +1,0 @@
-This is a collection of Matlab functions that were developed around Tephra2.
-
-* **plotT2.m** plots the output of Tephra2 on a map. It can be used with the functions *plot_google_map* and *u

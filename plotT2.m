@@ -12,6 +12,8 @@ function [E,N,M,Carea,Pmass,cont,varargout] = plotT2(data, varargin)
 %               default) or linear ('linear')
 % - 'contours': Values of the contours (vector, kg/m2), by default 
 %               [.1, 1, 10, 100, 1000]
+% - 'vent':     Vent coordinates, entered as [easting, northing]
+% - 'minVal':   Minimum value to be represented on the continuous color surface (kg/m2)
 %
 % Single input flags
 % - 'noplot':   Does not display a map
@@ -32,8 +34,9 @@ function [E,N,M,Carea,Pmass,cont,varargout] = plotT2(data, varargin)
 zone    = [];
 plt     = 'log';
 cnt     = [.1, 1, 10, 100, 1000];
-GISname = [];
 noPlot  = 0;
+vent    = [];
+minVal  = 0;
 
 if nargin == 0
     [flName,dirName] = uigetfile('*.*', 'Select the Tephra2 output file');
@@ -50,8 +53,11 @@ else
         elseif strcmpi(varargin{i}, 'contours')
             cnt = varargin{i+1};
             i = 1+1;
-        elseif strcmpi(varargin{i}, 'outName')
-            GISname = varargin{i+1};
+        elseif strcmpi(varargin{i}, 'vent')
+            vent = varargin{i+1};
+            i = 1+1;
+        elseif strcmpi(varargin{i}, 'minVal')
+            minVal = varargin{i+1};
             i = 1+1;
         end
     end
@@ -60,8 +66,10 @@ else
     end
 end
 
-%% Calculations
+% Temporarly remove warnings
+warning off backtrace % turn all warnings off
 
+%% Calculations
 % Load output file
 flName = data;
 try
@@ -83,12 +91,12 @@ E       = reshape(data(:,1), yn, xn);
 N       = reshape(data(:,2), yn, xn);
 M       = reshape(data(:,4), yn, xn);
 
-%M(M<cnt(1)) = nan;                      % Remove low values
 
 % If a UTM zone is passed, convert to lat/lon
 if ~isempty(zone)
     if exist('utm2ll.m', 'file')
-        [LT,LN] = utm2ll(data(:,1), data(:,2), zone);
+        [LT,LN]     = utm2ll(data(:,1), data(:,2), zone);
+        [LTv,LNv]   = utm2ll(vent(:,1), vent(:,2), zone);
         LT = reshape(LT, yn, xn);
         LN = reshape(LN, yn, xn);
     else
@@ -107,12 +115,17 @@ if exist('LT', 'var')
     YY  = LT;
     xl  = 'Longitude';
     yl  = 'Latitude';
+    V   = [LNv, LTv];
 else 
     XX  = E;
     YY  = N;
     xl  = 'Easting';
     yl  = 'Northing';   
+    V   = vent;
 end
+
+% Remove values smaller than minVal
+M(M<minVal) = nan;
 
 % Define if data is plotted as log
 if strcmpi(plt, 'log')
@@ -131,8 +144,8 @@ if noPlot == 0
     [c,h]       = contour(XX,YY,M,cnt, 'Color', 'k');
     clabel(c,h, cnt, 'LabelSpacing', 1000, 'FontWeight', 'bold')
     set(hd, 'FaceAlpha', 0.5)
-
-    % 
+    plot(V(:,1), V(:,2), '^k', 'MarkerFaceColor', 'r', 'MarkerSize', 10)
+    
     if exist('plot_google_map', 'file') && exist('LT', 'var')
         plot_google_map('maptype', 'terrain');
 
@@ -150,7 +163,7 @@ if noPlot == 0
     c = colorbar;
 
     % Labels
-    title(flName);
+    title(flName,'Interpreter', 'none');
     ylabel(c, zl);
     xlabel(xl);
     ylabel(yl);
@@ -172,6 +185,7 @@ if nargout > 0
     end
 end
 
+warning on backtrace % turn all warnings on
 
 
 % Calculates the area for all contours
