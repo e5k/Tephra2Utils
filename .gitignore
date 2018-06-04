@@ -12,4 +12,5 @@ get_MER_DB12.m
 *.gsd
 .DS_Store
 Working/
+Inversion_working
 *.o

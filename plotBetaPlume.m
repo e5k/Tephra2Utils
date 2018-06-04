@@ -1,4 +1,4 @@
-% function MAKEBETA(alpha, beta, height)
+% function plotBetaPlume(alpha, beta, height)
 % Plot the probability of mass release from the plume following a Beta
 % distribution.
 % - Alpha and Beta can be entered as single values or as vectors.
@@ -6,12 +6,12 @@
 %   the beta distribution is calculated from ground level.
 % 
 % Examples
-%   makeBeta(3, 2, 10)
-%   makeBeta([3,3,3],[1,2,3],[1,10])
+%   plotBetaPlume(3, 2, 10)
+%   plotBetaPlume([3,3,3],[1,2,3],[1,10])
 %
 % Written by S. Biass, Jan 2018
 
-function makeBeta(alpha, beta, height)
+function plotBetaPlume(alpha, beta, height)
 
 if numel(height) == 1
     height = [0, height];

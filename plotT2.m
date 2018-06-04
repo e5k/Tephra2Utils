@@ -14,6 +14,7 @@ function [E,N,M,Carea,Pmass,cont,varargout] = plotT2(data, varargin)
 %               [.1, 1, 10, 100, 1000]
 % - 'vent':     Vent coordinates, entered as [easting, northing]
 % - 'minVal':   Minimum value to be represented on the continuous color surface (kg/m2)
+% - 'points':   Specify points to plot as a 2-columns [easting,northing] matrix. If entered as a 3-columns [easting,northing,value] matrix, value is used as a lable
 %
 % Single input flags
 % - 'noplot':   Does not display a map
@@ -36,6 +37,7 @@ plt     = 'log';
 cnt     = [.1, 1, 10, 100, 1000];
 noPlot  = 0;
 vent    = [];
+points  = [];
 minVal  = 0;
 
 if nargin == 0
@@ -58,6 +60,9 @@ else
             i = 1+1;
         elseif strcmpi(varargin{i}, 'minVal')
             minVal = varargin{i+1};
+            i = 1+1;
+        elseif strcmpi(varargin{i}, 'points')
+            points = varargin{i+1};
             i = 1+1;
         end
     end
@@ -91,12 +96,12 @@ E       = reshape(data(:,1), yn, xn);
 N       = reshape(data(:,2), yn, xn);
 M       = reshape(data(:,4), yn, xn);
 
-
 % If a UTM zone is passed, convert to lat/lon
 if ~isempty(zone)
     if exist('utm2ll.m', 'file')
-        [LT,LN]     = utm2ll(data(:,1), data(:,2), zone);
+        [LT,LN]     = utm2ll(data(:,1), data(:,2), zone); 
         [LTv,LNv]   = utm2ll(vent(:,1), vent(:,2), zone);
+        [LTp,LNp]   = utm2ll(points(:,1), points(:,2), zone);
         LT = reshape(LT, yn, xn);
         LN = reshape(LN, yn, xn);
     else
@@ -116,12 +121,14 @@ if exist('LT', 'var')
     xl  = 'Longitude';
     yl  = 'Latitude';
     V   = [LNv, LTv];
+    P   = [LNp, LTp];
 else 
     XX  = E;
     YY  = N;
     xl  = 'Easting';
     yl  = 'Northing';   
     V   = vent;
+    P   = points(:,1:2);
 end
 
 % Remove values smaller than minVal
@@ -144,16 +151,24 @@ if noPlot == 0
     [c,h]       = contour(XX,YY,M,cnt, 'Color', 'k');
     clabel(c,h, cnt, 'LabelSpacing', 1000, 'FontWeight', 'bold')
     set(hd, 'FaceAlpha', 0.5)
-    plot(V(:,1), V(:,2), '^k', 'MarkerFaceColor', 'r', 'MarkerSize', 10)
+    % Plot vent
+    if ~isempty(V)
+        plot(V(1), V(2), '^k', 'MarkerFaceColor', 'r', 'MarkerSize', 10)
+    end
+    % Plot points
+    if ~isempty(P)
+        plot(P(:,1), P(:,2), 'ok', 'MarkerFaceColor', 'w', 'MarkerSize', 5);
+        if size(points,2) == 3
+            text(P(:,1), P(:,2), cellstr(num2str(points(:,3), '%.1f')));
+        end
+    end
     
     if exist('plot_google_map', 'file') && exist('LT', 'var')
         plot_google_map('maptype', 'terrain');
-
         % Plot grid extent
         gX = [XX(1,1), XX(1,end), XX(end,end), XX(end,1), XX(1,1)];
         gY = [YY(1,1), YY(1,end), YY(end,end), YY(end,1), YY(1,1)];
         plot(gX-res, gY-res, '-r', 'linewidth',0.5);
-
     elseif ~exist('plot_google_map', 'file') && exist('LT', 'var')
         warning('The function plot_google_map is not available. Download it from https://uk.mathworks.com/matlabcentral/fileexchange/27627-zoharby-plot-google-map');
     else
@@ -167,12 +182,10 @@ if noPlot == 0
     ylabel(c, zl);
     xlabel(xl);
     ylabel(yl);
-
     set(gca, 'Layer', 'top');
 end
 
 %% Prepare output
-
 if nargout > 0
     varargout = cell(nargout,1);
     for i = 1:nargout
@@ -184,9 +197,7 @@ if nargout > 0
         end
     end
 end
-
 warning on backtrace % turn all warnings on
-
 
 % Calculates the area for all contours
 function [Carea, Pmass, cont] = getArea(E, M, cnt)
