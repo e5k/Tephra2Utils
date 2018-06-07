@@ -8,10 +8,10 @@ function inversion = processT2Inversion(varargin)
 % Jun 2018: Re-wrote most of it
 
 % Configuration
-shFile = 'T2inversion_openPBS.sh'; % Name of the file used to start the inversion
+%shFile = 'runInversion_PBS.sh'; % Name of the file used to start the inversion
 
 % Optional parameters
-force = 0; % Forces the code to re-generate individual figures
+force = 1; % Forces the code to re-generate individual figures
 figFormat = 'pdf'; % Accepts 'pdf', 'eps', 'png', 'fig'
 
 % Add dependencies
@@ -52,21 +52,19 @@ all         = all([all.isdir]); % Retrieve dir only
 all         = all(3:end);       % Remove system dir
 
 % Read runMass.sh
-bashF      = prepareASCII(fullfile(fold, filesep, shFile));
+bashF      = prepareASCII(fullfile(fold, filesep, 'inversionConfig.conf'));
 inversion.inFile.input = parseValue(bashF, 'inputFile=', 0);
 inversion.inFile.wind  = parseValue(bashF, 'windFile=', 0);
 inversion.inFile.grid  = parseValue(bashF, 'gridFile=', 0);
 inversion.inFile.conf  = parseValue(bashF, 'configFile=', 0);
 inversion.batch        = logical(str2double(parseValue(bashF, 'BATCH=', 0)));
+inversion.wind          = str2double(parseValue(bashF, 'fixedWind=',0));
+inversion.vent.easting  = str2double(parseValue(bashF, 'ventE=',0));
+inversion.vent.northing = str2double(parseValue(bashF, 'ventN=',0));
+inversion.vent.zone     = str2double(parseValue(bashF, 'ventZ=',0));
 
 % Read input points
 inversion.observations = dlmread([fold, filesep, inversion.inFile.input]);
-
-% Read conf file
-confF   = prepareASCII([fold, filesep, all(1).name, filesep, 'tmp.conf']);
-inversion.wind          = parseValue(confF, 'FIXED_WIND',1);
-inversion.vent.easting  = parseValue(confF, 'VENT_EASTING',1);
-inversion.vent.northing = parseValue(confF, 'VENT_NORTHING',1);
 
 for i = 1:length(all)
     if exist([fold, filesep, all(i).name, filesep, 'parameters.README'], 'file')  
@@ -102,7 +100,7 @@ for i = 1:length(all)
         %% Plot figures
         % Plot map
         if ~exist(fullfile(fold, all(i).name, ['tephra2.', figFormat]), 'file') || force == 1
-            plotT2(fullfile(fold, all(i).name, 'tephra2.out'), 'vent', [inversion.vent.easting, inversion.vent.northing], 'plot', 'linear', 'points', inversion.observations(:,[1,2,4])); % -> add zone somewhere        
+            plotT2(fullfile(fold, all(i).name, 'tephra2.out'), 'zone', inversion.vent.zone, 'vent', [inversion.vent.easting, inversion.vent.northing], 'plot', 'linear', 'points', inversion.observations(:,[1,2,4])); % -> add zone somewhere        
             saveFig(gcf, fullfile(fold, all(i).name, ['tephra2.', figFormat]), figFormat);
         end
 
@@ -142,7 +140,7 @@ fitResult          = [[inversion.fit.fit]', [inversion.fit.plumeHeight]', [inver
 [fitResult,fitI]   = sortrows(fitResult);
 fitResult          = [[1:numel(fitI)]', fitResult];
 fitTable           = array2table(fitResult,'VariableNames', {'Nb', 'Fit', 'Height', 'Mass', 'Alpha', 'Beta', 'Diff', 'FTT', 'MdPhi', 'SigPhi'});
-
+inversion.fitTable = fitTable;
 % Write it to an asci file
 fid = fopen([fold, filesep, 'summary.txt'], 'w');
 fprintf(fid, '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n', 'Nb', 'Fit', 'Height', 'Mass', 'Alpha', 'Beta', 'Diff', 'FTT', 'MdPhi', 'SigPhi');
@@ -154,16 +152,19 @@ fclose(fid);
 % If batch, plot space
 if size(fitResult,1) > 1
     plot_rmse(fitTable, fold, 0);
+    
+    refine = 0;
+    if size(fitTable,1) > 10
+        choice = questdlg('Refine?', ...
+            'Refine', ...
+            'Yes, thanks for asking','Do I look like this type of guy?','Yes, thanks for asking');
 
-    choice = questdlg('Refine?', ...
-        'Refine', ...
-        'Yes, thanks for asking','Do I look like this type of guy?','Yes, thanks for asking');
-
-    switch choice
-        case 'Yes, thanks for asking'
-            refine = 1;
-        case 'Do I look like this type of guy?'
-            refine = 0;
+        switch choice
+            case 'Yes, thanks for asking'
+                refine = 1;
+            case 'Do I look like this type of guy?'
+                refine = 0;
+        end
     end
     
     % Function to refine the inversion plots
@@ -298,8 +299,13 @@ end
     
 function plot_inversion(xdata, ydata, zdata, xlab, ylab)
 
-cont    = 15;
+if numel(xdata<10)
+    maxData = numel(xdata);
+else
+    maxData = 10;
+end
 
+cont    = 15;
 x_step  = (max(xdata) - min(xdata))/cont; 
 y_step  = (max(ydata) - min(ydata))/cont;
 
@@ -314,7 +320,7 @@ axis square, hold on, box on
 
 z_norm = linspace(40, 10, length(xdata));
 scatter3(xdata, ydata, zdata, z_norm, 'k', 'fill', 'o', 'MarkerEdgeColor', 'k')
-text(xdata(1:10),ydata(1:10),zdata(1:10), cellstr(sprintfc('%d',[1:10]')), 'FontSize', 8, 'Color', 'r', 'FontWeight', 'bold');
+text(xdata(1:maxData),ydata(1:maxData),zdata(1:maxData), cellstr(sprintfc('%d',[1:maxData]')), 'FontSize', 11, 'Color', 'r', 'FontWeight', 'bold');
 
 
 xlabel(xlab);
@@ -385,4 +391,11 @@ else
     print(f, pth, ['-d', figFormat]);
 end
 close(f)
+
+% Data mining
+function flCell = prepareASCII(flPath)
+    fid     = fopen(flPath);
+    flCell  = textscan(fid, '%s', 'delimiter', '\n', 'MultipleDelimsAsOne',1);
+    flCell  = flCell{1};
+    fclose(fid);
     

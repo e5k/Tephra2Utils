@@ -28,10 +28,12 @@ stor = zeros(numel(x), numel(alpha), 2);
 leg  = cell(numel(alpha),1);
 for i = 1:numel(alpha)
     stor(:,i,1) = betapdf(x,alpha(i), beta(i))';
-    stor(:,i,1) = stor(:,i,1)./sum(stor(:,i,1));
+    %stor(:,i,1) = stor(:,i,1)./sum(stor(:,i,1));
     stor(:,i,2) = betacdf(x,alpha(i), beta(i))';
     leg{i}      = ['\alpha = ', num2str(alpha(i)), ', \beta = ', num2str(beta(i))];
 end
+stor(isinf(stor(:,:,1))) = nan;
+stor(:,:,1) = stor(:,:,1)./nansum(stor(:,:,1));
 
 figure;
 subplot(2,1,1)

@@ -1,16 +1,12 @@
 C/
-Inversion/
 test/
 get_MER_DB12.m
-*.conf
 *.pdf
-*.grd
 *.out
-*.wnd
 *.eps
 *.mat
 *.gsd
 .DS_Store
 Working/
-Inversion_working
+Inversion_working/
 *.o
