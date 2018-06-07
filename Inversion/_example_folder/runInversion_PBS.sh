@@ -26,6 +26,7 @@ function sum() {
 perl -e "print $1 + $2"
 }
 
+# With OpenPBS, got to cd to folder
 cd $PBS_O_WORKDIR
 echo $PBS_O_WORKDIR
 
@@ -48,7 +49,7 @@ mass2=$(($mass1 + deltaMass))
 		touch h_q_rmse1.dat
 		../../_scripts/genConfig.py $ht `sum $ht $incrHt` "1e$mass1" "1e$mass2" $ventE $ventN $ventA $minDiff $maxDiff $eddy $minMedPhi $maxMedPhi $minSigPhi  $maxSigPhi $minAlpha $maxAlpha $minBeta $maxBeta $minFTT $maxFTT $minWindSpeed $maxWindSpeed $minWindDir $maxWindDir $plumeModel $fixedWind $windLevels $colSteps $partSteps $lithicDensity $pumiceDensity $minPhi $maxPhi $fitTest
 		date
-         	mpirun  ../../tephra2012_inversion tmp.conf ../$inputFile ../$windFile
+         	mpirun  ../../../tephra2012_inversion tmp.conf ../$inputFile ../$windFile
 		date
 
 		rm node_*
@@ -56,7 +57,7 @@ mass2=$(($mass1 + deltaMass))
 		# Write out a configuration file for tephra2
 		../../_scripts/genConfigForward.py
 		# Run the tephra2 forward model
-		mpirun -np 1 -machinefile $PBS_NODEFILE ../../tephra2-2012 tephra2.conf ../$gridFile wind_levels.out > tephra2.out
+		mpirun -np 1 -machinefile $PBS_NODEFILE ../../../tephra2-2012 tephra2.conf ../$gridFile wind_levels.out > tephra2.out
 
 		cd ..
 	done
@@ -72,7 +73,7 @@ else
 
 	../../_scripts/genConfig.py $minHt $maxHt "1e$minMass" "1e$maxMass" $ventE $ventN $ventA $minDiff $maxDiff $eddy $minMedPhi $maxMedPhi $minSigPhi  $maxSigPhi $minAlpha $maxAlpha $minBeta $maxBeta $minFTT $maxFTT $minWindSpeed $maxWindSpeed $minWindDir $maxWindDir $plumeModel $fixedWind $windLevels $colSteps $partSteps $lithicDensity $pumiceDensity $minPhi $maxPhi $fitTest
 	date
-	mpirun -np $NCPUS -machinefile ../../tephra2012_inversion tmp.conf ../$inputFile ../$windFile
+	mpirun -np $NCPUS -machinefile ../../../tephra2012_inversion tmp.conf ../$inputFile ../$windFile
 	date
 
 	rm node_*
@@ -80,7 +81,7 @@ else
 	# Write out a configuration file for tephra2
 	../../_scripts/genConfigForward.py
 	# Run the tephra2 forward model
-	mpirun -np 1 -machinefile $PBS_NODEFILE ../../tephra2-2012 tephra2.conf ../$gridFile wind_levels.out >tephra2.out
+	mpirun -np 1 -machinefile $PBS_NODEFILE ../../../tephra2-2012 tephra2.conf ../$gridFile wind_levels.out >tephra2.out
 
 	cd ..
 fi
