@@ -100,8 +100,8 @@ M       = reshape(data(:,4), yn, xn);
 if ~isempty(zone)
     if exist('utm2ll.m', 'file')
         [LT,LN]     = utm2ll(data(:,1), data(:,2), zone); 
-        [LTv,LNv]   = utm2ll(vent(:,1), vent(:,2), zone);
-        [LTp,LNp]   = utm2ll(points(:,1), points(:,2), zone);
+        if ~isempty(vent); [LTv,LNv]     = utm2ll(vent(:,1), vent(:,2), zone); end
+        if ~isempty(points); [LTp,LNp]   = utm2ll(points(:,1), points(:,2), zone); end
         LT = reshape(LT, yn, xn);
         LN = reshape(LN, yn, xn);
     else
@@ -120,15 +120,15 @@ if exist('LT', 'var')
     YY  = LT;
     xl  = 'Longitude';
     yl  = 'Latitude';
-    V   = [LNv, LTv];
-    P   = [LNp, LTp];
+    if ~isempty(vent);   V   = [LNv, LTv]; end
+    if ~isempty(points); P   = [LNp, LTp]; end
 else 
     XX  = E;
     YY  = N;
     xl  = 'Easting';
     yl  = 'Northing';   
-    V   = vent;
-    P   = points(:,1:2);
+    if ~isempty(vent);   V   = vent; end    
+    if ~isempty(points); P   = points(:,1:2); end
 end
 
 % Remove values smaller than minVal
@@ -152,11 +152,11 @@ if noPlot == 0
     clabel(c,h, cnt, 'LabelSpacing', 1000, 'FontWeight', 'bold')
     set(hd, 'FaceAlpha', 0.5)
     % Plot vent
-    if ~isempty(V)
+    if ~isempty(vent)
         plot(V(1), V(2), '^k', 'MarkerFaceColor', 'r', 'MarkerSize', 10)
     end
     % Plot points
-    if ~isempty(P)
+    if ~isempty(points)
         plot(P(:,1), P(:,2), 'ok', 'MarkerFaceColor', 'w', 'MarkerSize', 5);
         if size(points,2) == 3
             text(P(:,1), P(:,2), cellstr(num2str(points(:,3), '%.1f')));
