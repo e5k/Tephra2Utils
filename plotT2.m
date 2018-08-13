@@ -14,10 +14,11 @@ function [E,N,M,Carea,Pmass,cont,varargout] = plotT2(data, varargin)
 %               [.1, 1, 10, 100, 1000]
 % - 'vent':     Vent coordinates, entered as [easting, northing]
 % - 'minVal':   Minimum value to be represented on the continuous color surface (kg/m2)
-% - 'points':   Specify points to plot as a 2-columns [easting,northing] matrix. If entered as a 3-columns [easting,northing,value] matrix, value is used as a lable
+% - 'points':   Specify points to plot as a 2-columns [easting,northing] matrix. If entered as a 3-columns [easting,northing,value] matrix, value is used as a label
 %
 % Single input flags
-% - 'noplot':   Does not display a map
+% - '-noplot':  Kills map display
+% - '-raster':  Writes an ArcMap ASCII raster as a text file in UTM coordinates
 %
 % Outputs
 % [E,N,M,A]         = plotT2(...)
@@ -36,6 +37,7 @@ zone    = [];
 plt     = 'log';
 cnt     = [.1, 1, 10, 100, 1000];
 noPlot  = 0;
+raster  = 0;
 vent    = [];
 points  = [];
 minVal  = 0;
@@ -48,27 +50,25 @@ else
     for i = 1:length(varargin)
         if strcmpi(varargin{i}, 'zone')
             zone = varargin{i+1};
-            i = i+1;
         elseif strcmpi(varargin{i}, 'plot')
             plt = varargin{i+1};
-            i = 1+1;
         elseif strcmpi(varargin{i}, 'contours')
             cnt = varargin{i+1};
-            i = 1+1;
         elseif strcmpi(varargin{i}, 'vent')
             vent = varargin{i+1};
-            i = 1+1;
         elseif strcmpi(varargin{i}, 'minVal')
             minVal = varargin{i+1};
-            i = 1+1;
         elseif strcmpi(varargin{i}, 'points')
             points = varargin{i+1};
-            i = 1+1;
         end
     end
     if nnz(strcmpi(varargin, '-noplot'))
         noPlot = 1;
     end
+    if nnz(strcmpi(varargin, '-raster'))
+        raster = 1;
+    end
+    
 end
 
 % Temporarly remove warnings
@@ -185,6 +185,12 @@ if noPlot == 0
     set(gca, 'Layer', 'top');
 end
 
+%% Write raster
+if raster == 1
+     writeDEM([flName(1:end-4), '.txt'], E, N, M);
+     fprintf('- ASCII raster saved as %s in UTM coordinates\n\n', [flName(1:end-4), '.txt'])
+end
+
 %% Prepare output
 if nargout > 0
     varargout = cell(nargout,1);
@@ -198,6 +204,18 @@ if nargout > 0
     end
 end
 warning on backtrace % turn all warnings on
+
+% Write matrix as an ArcMap ascii DEM
+function writeDEM(out_name, X, Y, Z)
+Z(isnan(Z)) = -9999;
+
+fid_3=fopen(out_name,'w');
+fprintf(fid_3,'%s\n',['ncols         ' num2str(size(X,2))],['nrows         ' num2str(size(X,1))],...
+    ['xllcorner     ' num2str(X(1,1))],['yllcorner     ' num2str(Y(end,1))],...
+    ['cellsize      ' num2str(X(1,2)-X(1,1))],['NODATA_value  ' num2str(-9999)]);
+fclose(fid_3);
+
+dlmwrite(out_name,Z,'-append','delimiter',' ')
 
 % Calculates the area for all contours
 function [Carea, Pmass, cont] = getArea(E, M, cnt)
