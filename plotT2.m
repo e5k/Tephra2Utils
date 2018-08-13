@@ -21,10 +21,8 @@ function [E,N,M,Carea,Pmass,cont,varargout] = plotT2(data, varargin)
 % - '-raster':  Writes an ArcMap ASCII raster as a text file in UTM coordinates
 %
 % Outputs
-% [E,N,M,A]         = plotT2(...)
-%               Return gridded easting, northing, mass accumulation and isomass areas (km2)
-% [E,N,M,A,Lat,Lon] = plotT2(...)
-%               If 'zone' is specified, also returns the gridded latitude/longitude
+% [E,N,M,A]         = plotT2(...)       % Return gridded easting, northing, mass accumulation and isomass areas (km2)
+% [E,N,M,A,Lat,Lon] = plotT2(...)       % If 'zone' is specified, also returns the gridded latitude/longitude
 %
 % Examples
 % [E,N,M,A]         = plotT2('example.out');
@@ -211,11 +209,11 @@ Z(isnan(Z)) = -9999;
 
 fid_3=fopen(out_name,'w');
 fprintf(fid_3,'%s\n',['ncols         ' num2str(size(X,2))],['nrows         ' num2str(size(X,1))],...
-    ['xllcorner     ' num2str(X(1,1))],['yllcorner     ' num2str(Y(end,1))],...
+    ['xllcorner     ' num2str(min(X(1,:)))],['yllcorner     ' num2str(min(Y(:,1)))],...
     ['cellsize      ' num2str(X(1,2)-X(1,1))],['NODATA_value  ' num2str(-9999)]);
 fclose(fid_3);
 
-dlmwrite(out_name,Z,'-append','delimiter',' ')
+dlmwrite(out_name,flipud(Z),'-append','delimiter',' ')
 
 % Calculates the area for all contours
 function [Carea, Pmass, cont] = getArea(E, M, cnt)

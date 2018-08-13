@@ -34,7 +34,7 @@ tgsd.minD   = 5;
 
 conf.pth           = [];
 conf.plumeHeight   = 5000:5000:20000;
-conf.mass          = 1e10;
+conf.mass          = logspace(11,13,10);% 1e11:.5e11:1e13;
 conf.duration      = 1; % Hours
 conf.eddyConst     = 0.04;
 conf.diffCoef      = 112;
