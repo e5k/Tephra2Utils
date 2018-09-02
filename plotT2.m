@@ -185,7 +185,7 @@ end
 
 %% Write raster
 if raster == 1
-     writeDEM([flName(1:end-4), '.txt'], E, N, M);
+     writeDEM([flName(1:end-4), '.txt'], XX, YY, M);
      fprintf('- ASCII raster saved as %s in UTM coordinates\n\n', [flName(1:end-4), '.txt'])
 end
 
