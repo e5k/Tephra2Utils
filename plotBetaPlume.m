@@ -21,7 +21,7 @@ if numel(alpha) ~= numel(beta)
     error('Alpha and beta should have the same size')
 end
 
-x = linspace(0,1,50);
+x = linspace(0,1,25);
 h = height(1) + x.*(height(2)-height(1));
 
 stor = zeros(numel(x), numel(alpha), 2);
