@@ -37,9 +37,10 @@ pumiceDensity = argv[31]
 minPhi = argv[32]
 maxPhi = argv[33]
 fitTest = argv[34]
+seed = argv[35]
 
 with open( '../../_templates/inversionConfTemplate.conf', 'r' ) as inF:
   config = Template(inF.read() )
-  conf = config.substitute(minHt=minHt, maxHt=maxHt, minMass=minMass, maxMass=maxMass, ventE=ventE, ventN=ventN, ventA=ventA, minDiff=minDiff, maxDiff=maxDiff, eddy=eddy, minMedPhi=minMedPhi, maxMedPhi=maxMedPhi, minSigPhi=minSigPhi, maxSigPhi=maxSigPhi, minAlpha=minAlpha, maxAlpha=maxAlpha, minBeta=minBeta, maxBeta=maxBeta, minFTT=minFTT, maxFTT=maxFTT, minWindSpeed=minWindSpeed, maxWindSpeed=maxWindSpeed, minWindDir=minWindDir, maxWindDir=maxWindDir, plumeModel=plumeModel, fixedWind=fixedWind, windLevels=windLevels, colSteps=colSteps, partSteps=partSteps, lithicDensity=lithicDensity, pumiceDensity=pumiceDensity, minPhi=minPhi, maxPhi=maxPhi, fitTest=fitTest)
+  conf = config.substitute(minHt=minHt, maxHt=maxHt, minMass=minMass, maxMass=maxMass, ventE=ventE, ventN=ventN, ventA=ventA, minDiff=minDiff, maxDiff=maxDiff, eddy=eddy, minMedPhi=minMedPhi, maxMedPhi=maxMedPhi, minSigPhi=minSigPhi, maxSigPhi=maxSigPhi, minAlpha=minAlpha, maxAlpha=maxAlpha, minBeta=minBeta, maxBeta=maxBeta, minFTT=minFTT, maxFTT=maxFTT, minWindSpeed=minWindSpeed, maxWindSpeed=maxWindSpeed, minWindDir=minWindDir, maxWindDir=maxWindDir, plumeModel=plumeModel, fixedWind=fixedWind, windLevels=windLevels, colSteps=colSteps, partSteps=partSteps, lithicDensity=lithicDensity, pumiceDensity=pumiceDensity, minPhi=minPhi, maxPhi=maxPhi, fitTest=fitTest, seed=seed)
   with open( 'tmp.conf', 'w' ) as outF:
     outF.write( conf )

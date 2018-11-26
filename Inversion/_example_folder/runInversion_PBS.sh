@@ -1,13 +1,11 @@
 #!/bin/bash
 
-#PBS -N inversionDebug
+#PBS -N Inversion
 #PBS -j oe
 #PBS -V
 #PBS -m n
-#PBS -M sbiasse@ntu.edu.sg
 #PBS -l nodes=1:ppn=12
 #PBS -q q12
-#PBS
 
 # Load modules
 module load python/2.7.4
@@ -35,19 +33,26 @@ source inversionConfig.conf
 chmod 755 ../_scripts/genConfig.py
 chmod 755 ../_scripts/genConfigForward.py
 
+# Check the seed
+if [ "$SEED" = "-1" ]; then
+	RANGE=500
+	SEED=$RANDOM
+	let "SEED %= $RANGE"
+fi
+
 if [ "$BATCH" = "1" ]; then
-echo "BATCH"
-mass1=$PBS_ARRAYID
-mass2=$(($mass1 + deltaMass))
+	echo "BATCH"
+	mass1=$PBS_ARRAYID
+	mass2=$(($mass1 + deltaMass))
 
 	for ht in `seq $minHt $deltaHt $maxHt`; do
 		outDir=mass${mass1}_ht$(($ht/1000))
 		mkdir $outDir
-		cp $inputFile $outDir/inversion_input.utm
+		cp $inputFile $outDir/inversionInput.txt
 		cd $outDir
 
 		touch h_q_rmse1.dat
-		../../_scripts/genConfig.py $ht `sum $ht $incrHt` "1e$mass1" "1e$mass2" $ventE $ventN $ventA $minDiff $maxDiff $eddy $minMedPhi $maxMedPhi $minSigPhi  $maxSigPhi $minAlpha $maxAlpha $minBeta $maxBeta $minFTT $maxFTT $minWindSpeed $maxWindSpeed $minWindDir $maxWindDir $plumeModel $fixedWind $windLevels $colSteps $partSteps $lithicDensity $pumiceDensity $minPhi $maxPhi $fitTest
+		../../_scripts/genConfig.py $ht `sum $ht $incrHt` "1e$mass1" "1e$mass2" $ventE $ventN $ventA $minDiff $maxDiff $eddy $minMedPhi $maxMedPhi $minSigPhi  $maxSigPhi $minAlpha $maxAlpha $minBeta $maxBeta $minFTT $maxFTT $minWindSpeed $maxWindSpeed $minWindDir $maxWindDir $plumeModel $fixedWind $windLevels $colSteps $partSteps $lithicDensity $pumiceDensity $minPhi $maxPhi $fitTest $SEED
 		date
          	mpirun  ../../../tephra2012_inversion tmp.conf ../$inputFile ../$windFile
 		date
@@ -62,16 +67,41 @@ mass2=$(($mass1 + deltaMass))
 		cd ..
 	done
 
+elif [ "$BATCH" = "2" ]; then
+	echo "SINGLE with variable seed"
+	SEED=$PBS_ARRAYID
+
+	outDir=mass${minMass}_ht$(($minHt/1000))_$SEED
+	mkdir $outDir
+
+	cp $inputFile $outDir/inversionInput.txt
+	cd $outDir
+
+	touch h_q_rmse1.dat
+	../../_scripts/genConfig.py $minHt $maxHt "1e$minMass" "1e$maxMass" $ventE $ventN $ventA $minDiff $maxDiff $eddy $minMedPhi $maxMedPhi $minSigPhi  $maxSigPhi $minAlpha $maxAlpha $minBeta $maxBeta $minFTT $maxFTT $minWindSpeed $maxWindSpeed $minWindDir $maxWindDir $plumeModel $fixedWind $windLevels $colSteps $partSteps $lithicDensity $pumiceDensity $minPhi $maxPhi $fitTest $SEED
+	date
+		mpirun ../../../tephra2012_inversion tmp.conf ../$inputFile ../$windFile
+	date
+
+	rm node_*
+
+	# Write out a configuration file for tephra2
+	../../_scripts/genConfigForward.py
+	# Run the tephra2 forward model
+	mpirun -np 1 -machinefile $PBS_NODEFILE ../../../tephra2-2012 tephra2.conf ../$gridFile wind_levels.out >tephra2.out
+
+	cd ..
+
 else
 	echo "SINGLE"
 	outDir=mass${minMass}_ht$(($minHt/1000))
 	mkdir $outDir
-	cp $inputFile $outDir/inversion_input.utm
+	cp $inputFile $outDir/inversionInput.txt
 	cd $outDir
 
 	touch h_q_rmse1.dat
 
-	../../_scripts/genConfig.py $minHt $maxHt "1e$minMass" "1e$maxMass" $ventE $ventN $ventA $minDiff $maxDiff $eddy $minMedPhi $maxMedPhi $minSigPhi  $maxSigPhi $minAlpha $maxAlpha $minBeta $maxBeta $minFTT $maxFTT $minWindSpeed $maxWindSpeed $minWindDir $maxWindDir $plumeModel $fixedWind $windLevels $colSteps $partSteps $lithicDensity $pumiceDensity $minPhi $maxPhi $fitTest
+	../../_scripts/genConfig.py $minHt $maxHt "1e$minMass" "1e$maxMass" $ventE $ventN $ventA $minDiff $maxDiff $eddy $minMedPhi $maxMedPhi $minSigPhi  $maxSigPhi $minAlpha $maxAlpha $minBeta $maxBeta $minFTT $maxFTT $minWindSpeed $maxWindSpeed $minWindDir $maxWindDir $plumeModel $fixedWind $windLevels $colSteps $partSteps $lithicDensity $pumiceDensity $minPhi $maxPhi $fitTest $SEED
 	date
 	mpirun -np $NCPUS -machinefile ../../../tephra2012_inversion tmp.conf ../$inputFile ../$windFile
 	date
