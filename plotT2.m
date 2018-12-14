@@ -81,6 +81,11 @@ catch ME
     data = dlmread(data, ' ', 1, 0);
 end
 
+% In case plotting output from TephraProb, add an empty column
+if size(data,2) == 3
+    data = [data(:,1:2), zeros(size(data,1),1), data(:,3)];
+end
+
 % Prepare the data
 data    = data(:,1:4);                  % Remove GS data
 data    = sortrows(data, [1,2]);        % Sort along northing
