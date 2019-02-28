@@ -3,8 +3,8 @@
 #SBATCH --cpus-per-task=1
 #SBATCH -N 1
 #SBATCH --output=slurm-%J.out
-#SBATCH --job-name=K1721av_Inversion
-#SBATCH --mail-user=janebo@hawaii.edu
+#SBATCH --job-name=Tephra2Inversion
+#SBATCH --mail-user=email@domain.edu
 #SBATCH --mail-type=END
 #SBATCH --exclusive
 module load foss/2016a Python/2.7.11
