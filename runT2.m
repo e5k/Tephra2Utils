@@ -7,11 +7,17 @@ run.mass    = 0;                % 0: Mass if specified
                                 % 1: Mass computed from height, wind and duration
                                 % 2: Mass computed from thermal theory - to add
 
-grid.pth    = 'gr';%{'1.grd','2.grd'};               %                                 
+% Grid parameter
+% If the grid is specified in grid.pth, specify either:
+%   - The path to one grid:     grid.pth = 'pth2grid/grid.grd'
+%   - A cell array of grids:    grid.pth = {'pth2grid/grid1.grd', 'pth2grid/grid2.grd'}
+%   - The path and extention:   grid.pth = 'pth2grid/*.grd'
+% Alternatively, if grid.pth is empty, a grid can be defined
+grid.pth    = 'test/GRID/*.grd'; %{'1.grd','2.grd'};% Path to grids. In case it is entered as a cell array containing multiple files, all grids will be simulated.                               
 grid.xLim   = [-50000 250000];  % X limits (UTM, m)
 grid.yLim   = [-75000 75000];   % Y limits (UTM, m)
-grid.res    = [1000,2000];           % Grid resolution (m)
-grid.elev   = [0,100];              % Mean elevation
+grid.res    = [1000,2000];      % Grid resolution (m)
+grid.elev   = [0,100];          % Mean elevation
 grid.zone   = [];               % Zone
 
 vent.x      = 0;
@@ -46,6 +52,9 @@ conf.partStep      = 50;
 conf.plumeAlpha    = 3;
 conf.plumeBeta     = 2;
 
+%% Beginning of the code
+
+
 % Check input structure
 if nargin > 0 && isstruct(varargin{1})
     data    = varargin{1};
@@ -72,24 +81,37 @@ mkdir(fullfile(run.name, 'WIND'));
 mkdir(fullfile(run.name, 'OUT'));
 mkdir(fullfile(run.name, 'TGSD'));
 
-elements    = cell(30,1);
-elementsN   = cell(30,1);
-elemC       = 1;
+elements    = cell(30,1);   % List of variable elements. Each row is a different variable where each column is a different value
+elementsN   = cell(30,1);   % Name of the variable element
+elemC       = 1;            % Counter for the elements
 
 %% Grid
 elemS   = elemC; % Start counter
 % In case the path to the grid files is specified
 if ~isempty(grid.pth)
     grid.elem    = {'pth'};
-    grid.elemF   = {'Grid name'};
+    grid.elemF   = {'Grid path'};
     
-    % Check if the path is a directory
-    if isdir(grid.pth)
-        grid.pth = dir2pth(grid.pth);  
+    % If path is provided
+    if ischar(grid.pth) && ~exist(grid.pth,'file') && ~isempty(dir(grid.pth))
+        grid.pth = dir2pth(grid.pth);
+        
+    % Else
+    else
+        % If the path contains only one file, convert it to a cell
+        if ischar(grid.pth)
+            grid.pth = {grid.pth};
+        end
+        % Then check that all files exist
+        if nnz(~cellfun(@exist, grid.pth)==2) > 0
+            error('The path to the grid file does not exist')
+        end
     end
     
+    % Store elements
     [elements, elementsN, elemC, grid] ...
         = prepareInput(elements, elementsN, elemS, elemC, grid, 'grid', '.grd',1);
+    
 % Else get combinations and create grids
 else
     grid.elem    = {'res', 'elev'};                          % Variable name
@@ -105,10 +127,6 @@ else
         fullfile(run.name, 'GRID', grid.N{i}));
     end
 end
-                                         
-
-
-
 
 %% Wind
 if isempty(wind.pth)
@@ -187,10 +205,10 @@ end
 makeConf(conf, vent, run.name);
 
 %% Run the hard way
-sConf = size(conf.N, 1);
-sGrid = size(grid.N, 1);
-sWind = size(wind.N, 1);
-sTgsd = size(tgsd.N, 1);
+sConf = numel(conf.N);
+sGrid = numel(grid.N);
+sWind = numel(wind.N);
+sTgsd = numel(tgsd.N);
 
 % This vector contains the indices to conf, grid, wind and tgsd in each
 % column
@@ -218,7 +236,7 @@ for iConf = 1:sConf
                 idxStor(count,:) = [iConf, iGrid iWind, iTgsd];
                 
                 % Adapts file path
-                if isempty(grid.pth); gridP = [run.name, filesep, 'GRID', filesep]; else; gridP = []; end
+                if isempty(grid.pth); gridP = [run.name, filesep, 'GRID', filesep]; else; gridP = grid.pth{iGrid}; end
                 if isempty(wind.pth); windP = [run.name, filesep, 'WIND', filesep]; else; windP = []; end
                 if isempty(tgsd.pth); tgsdP = [run.name, filesep, 'TGSD', filesep]; else; tgsdP = []; end
                 if isempty(conf.pth); confP = [run.name, filesep, 'CONF', filesep]; else; confP = []; end
@@ -296,7 +314,7 @@ if type == 0
 % Else use file path
 else
     struc.Pt = elements{elemS:elemC-1};
-    struc.N  = elements{elemS:elemC-1};
+    struc.N  = elements{elemS:elemC-1}';
     struc.Pt = (1:numel(struc.Pt))';
 end
 % Here convert all variables into structure fields
@@ -475,4 +493,4 @@ disp('Modelling finished!');
 function names = dir2pth(pth)
 fl    = dir(pth);
 names = {fl.name};
-names = names{~[fl.isdir]};
+names = strcat(fl(1).folder, filesep, names);
