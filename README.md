@@ -10,8 +10,11 @@ Plots the output of Tephra2 on a map. It can be used with the functions *plot_go
 ### runT2.m 
 Runs Tephra2 and allows sensitivity analyses of parameters. *This is still experimental*.
 
-### makeBeta.m 
+### plotBetaPlume.m 
 Plots the mass distribution in the column using a Beta PDF, which is the model used in Tephra2.
+
+### plotTGSD.m 
+Plots a gaussian TGSD.
 
 ### processT2Inversion.m
 Process the output of inversion runs described [here](https://e5k.github.io/codes/utilities/2018/06/06/inversion/).
