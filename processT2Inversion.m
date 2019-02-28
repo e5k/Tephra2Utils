@@ -11,7 +11,7 @@ function inversion = processT2Inversion(varargin)
 %shFile = 'runInversion_PBS.sh'; % Name of the file used to start the inversion
 
 % Optional parameters
-force = 1; % Forces the code to re-generate individual figures
+force = 0; % Forces the code to re-generate individual figures
 figFormat = 'pdf'; % Accepts 'pdf', 'eps', 'png', 'fig'
 
 % Add dependencies
@@ -52,26 +52,44 @@ all         = all([all.isdir]); % Retrieve dir only
 all         = all(3:end);       % Remove system dir
 
 % Read runMass.sh
-bashF      = prepareASCII(fullfile(fold, filesep, 'inversionConfig.conf'));
-inversion.inFile.input = parseValue(bashF, 'inputFile=', 0);
-inversion.inFile.wind  = parseValue(bashF, 'windFile=', 0);
-inversion.inFile.grid  = parseValue(bashF, 'gridFile=', 0);
-inversion.inFile.conf  = parseValue(bashF, 'configFile=', 0);
-inversion.batch        = logical(str2double(parseValue(bashF, 'BATCH=', 0)));
+bashF                   = prepareASCII(fullfile(fold, filesep, 'inversionConfig.conf'));
+inversion.inFile.input  = parseValue(bashF, 'inputFile=', 0);
+inversion.inFile.wind   = parseValue(bashF, 'windFile=', 0);
+inversion.inFile.grid   = parseValue(bashF, 'gridFile=', 0);
+inversion.inFile.conf   = parseValue(bashF, 'configFile=', 0);
+inversion.batch         = str2double(parseValue(bashF, 'BATCH=', 0));
 inversion.wind          = str2double(parseValue(bashF, 'fixedWind=',0));
+inversion.maxWindDir    = str2double(parseValue(bashF, 'maxWindDir=',0));
+inversion.minWindDir    = str2double(parseValue(bashF, 'minWindDir=',0));
 inversion.vent.easting  = str2double(parseValue(bashF, 'ventE=',0));
 inversion.vent.northing = str2double(parseValue(bashF, 'ventN=',0));
+inversion.vent.zone     = str2double(parseValue(bashF, 'ventZ=',0));
 inversion.vent.zone     = str2double(parseValue(bashF, 'ventZ=',0));
 
 % Read input points
 inversion.observations = dlmread([fold, filesep, inversion.inFile.input]);
 
 for i = 1:length(all)
+    fprintf('Reading %s\n', all(i).name)
+    if i == 1
+        % Read tmp.conf to retrieve the SEED value. Do that only once
+        tmpF            = prepareASCII([fold, filesep, all(i).name, filesep, 'tmp.conf']);
+        inversion.seed  = str2double(parseValue(tmpF, 'SEED ',0));
+    end
+    
     if exist([fold, filesep, all(i).name, filesep, 'parameters.README'], 'file')  
         % Read output 
         outF    = prepareASCII([fold, filesep, all(i).name, filesep, 'parameters.README']);
         idx     = find(strcmp(outF, 'Parameter Ranges:'));
         inversion.fit(i).folder = all(i).name;
+        
+        % Retrieve run number (important for batch = 2)
+        if inversion.batch == 2
+            tmp = strsplit(all(i).name, '_');
+            inversion.fit(i).Nb = str2double(tmp{end});
+        else
+            inversion.fit(i).Nb = i;
+        end
         
         % Retrieve fit values
         flVar = {'FIT =', 'Max Column Height:', 'Total Mass Ejected:', 'Alpha Param:', 'Beta Param:', 'Diffusion Coefficient:', 'Fall Time Threshold:', 'Eddy Constant:', 'Median Size:','Std. Dev.:'};
@@ -100,13 +118,13 @@ for i = 1:length(all)
         %% Plot figures
         % Plot map
         if ~exist(fullfile(fold, all(i).name, ['tephra2.', figFormat]), 'file') || force == 1
-            plotT2(fullfile(fold, all(i).name, 'tephra2.out'), 'zone', inversion.vent.zone, 'vent', [inversion.vent.easting, inversion.vent.northing], 'plot', 'linear', 'points', inversion.observations(:,[1,2,4])); % -> add zone somewhere        
+            plotT2(fullfile(fold, all(i).name, 'tephra2.out'), 'vent', [inversion.vent.easting, inversion.vent.northing], 'plot', 'linear', 'points', inversion.observations(:,[1,2,4]), '-novis'); % -> add zone somewhere        
             saveFig(gcf, fullfile(fold, all(i).name, ['tephra2.', figFormat]), figFormat);
         end
 
         % Beta distribution of the plume
         if ~exist(fullfile(fold, all(i).name, ['plume.', figFormat]), 'file') || force == 1
-            plotBetaPlume(inversion.fit(i).alpha, inversion.fit(i).beta, inversion.fit(i).plumeHeight)     
+            plotBetaPlume(inversion.fit(i).alpha, inversion.fit(i).beta, inversion.fit(i).plumeHeight, '-noplot')     
             saveFig(gcf, fullfile(fold, all(i).name, ['plume.', figFormat]), figFormat);
         end
 
@@ -120,6 +138,12 @@ for i = 1:length(all)
         if ~exist(fullfile(fold, all(i).name, ['wind.', figFormat]), 'file') || force == 1
             plotWind(inversion.fit(i).wind.height, inversion.fit(i).wind.direction, inversion.fit(i).wind.speed);     
             saveFig(gcf, fullfile(fold, all(i).name, ['wind.', figFormat]), figFormat);
+        end
+        
+        % TGSD
+        if ~exist(fullfile(fold, all(i).name, ['TGSD.', figFormat]), 'file') || force == 1
+            plotTGSD(inversion.fit(i).medPhi, inversion.fit(i).stdPhi);     
+            saveFig(gcf, fullfile(fold, all(i).name, ['TGSD.', figFormat]), figFormat);
         end
 
         % Clean folder
@@ -136,9 +160,9 @@ end
 
 %% Prepare outputs
 % Main inversion result table
-fitResult          = [[inversion.fit.fit]', [inversion.fit.plumeHeight]', [inversion.fit.mass]', [inversion.fit.alpha]', [inversion.fit.beta]', [inversion.fit.diffCoef]', [inversion.fit.ftt]', [inversion.fit.medPhi]', [inversion.fit.stdPhi]']; 
-[fitResult,fitI]   = sortrows(fitResult);
-fitResult          = [[1:numel(fitI)]', fitResult];
+fitResult          = [[inversion.fit.Nb]', [inversion.fit.fit]', [inversion.fit.plumeHeight]', [inversion.fit.mass]', [inversion.fit.alpha]', [inversion.fit.beta]', [inversion.fit.diffCoef]', [inversion.fit.ftt]', [inversion.fit.medPhi]', [inversion.fit.stdPhi]']; 
+fitResult          = sortrows(fitResult,2);
+%fitResult          = [[1:numel(fitI)]', fitResult];
 fitTable           = array2table(fitResult,'VariableNames', {'Nb', 'Fit', 'Height', 'Mass', 'Alpha', 'Beta', 'Diff', 'FTT', 'MdPhi', 'SigPhi'});
 inversion.fitTable = fitTable;
 % Write it to an asci file
@@ -149,44 +173,27 @@ for i = 1:size(fitResult, 1)
 end
 fclose(fid);
 
-% If batch, plot space
-if size(fitResult,1) > 1
-    plot_rmse(fitTable, fold, 0);
-    
-    refine = 0;
-    if size(fitTable,1) > 10
-        choice = questdlg('Refine?', ...
-            'Refine', ...
-            'Yes, thanks for asking','Do I look like this type of guy?','Yes, thanks for asking');
+save([fold, filesep, foldpart{end-1}, '_', foldpart{end}, '.mat'], 'inversion')
+disp(inversion.fitTable);
 
-        switch choice
-            case 'Yes, thanks for asking'
-                refine = 1;
-            case 'Do I look like this type of guy?'
-                refine = 0;
-        end
-    end
+% If batch, plot space
+if inversion.batch == 1
+    plotT2Inversion(inversion)
+elseif inversion.batch == 2
+    plotT2Inversion(inversion)
     
-    % Function to refine the inversion plots
-    if refine == 1
-        fprintf('\tRefine the inversion plot by discarding values above a given fit threshold\n')
-        check = 0;
-        while check == 0
-            figure; 
-            plot(log10(fitTable.Fit), 1:numel(fitTable.Fit), '-r.', 'LineWidth', 2,'MarkerEdgeColor','k');
-            xlabel('Fit'); ylabel('Frequency'); 
-            title('Click where to split the data. You must choose at least 10 points.');
-            fitT        = ginput(1);
-            [~,bisIdx]  = min(abs(log10(fitTable.Fit)-fitT(1)));
-            close(gcf);
-            if bisIdx<10
-                errordlg('You must chose at least 10 points. Try again!')
-            else
-                check = 1;
-            end
-        end
-        plot_rmse(fitTable(1:bisIdx,:), fold, 1);
+    % Plot matrix of scatter plots
+    fitPM = fitResult;
+    fitPM(:,4) = log10(fitPM(:,4));
+    fitPM(:,3) = fitPM(:,3)./1e3;
+    varName = {'Nb', 'Fit', 'Height', 'Mass', 'Alpha', 'Beta', 'Diff', 'FTT', 'MdPhi', 'SigPhi'};
+    
+    figure, [~,ax]= plotmatrix(fitPM);
+    for i = 1:size(ax,1)
+        xlabel(ax(end,i), varName{i})
+        ylabel(ax(i,1), varName{i})
     end
+    saveas(gcf, [fold, filesep, foldpart{end-1}, '_', foldpart{end}, '.fig']);
 end
 
 
@@ -197,19 +204,25 @@ end
 % Write folder
 xlwrite([rootFold, filesep, flName], {fold}, sheetName, 'A1');          % Write folder
 xlwrite([rootFold, filesep, flName], {datestr(now)}, sheetName, 'A2');  % Write date
-xlwrite([rootFold, filesep, flName], {'Input file:', inversion.inFile.input}, sheetName, 'A3');  
-xlwrite([rootFold, filesep, flName], {'Configuration file:', inversion.inFile.conf}, sheetName, 'A4');
-xlwrite([rootFold, filesep, flName], {'Grid file:', inversion.inFile.grid}, sheetName, 'A5');
-xlwrite([rootFold, filesep, flName], {'Fixed wind:', num2str(inversion.wind)}, sheetName, 'A6');
-xlwrite([rootFold, filesep, flName], {'Wind file:', inversion.inFile.wind}, sheetName, 'A7');
-%if exist('grid_file', 'var');    xlwrite([rootFold, filesep, flName], {'Grid file:', inversion.inFile.grid}, sheetName, 'A5'); end;
-%if exist('wind_file', 'var');    xlwrite([rootFold, filesep, flName], {'Wind file:', inversion.inFile.wind}, sheetName, 'A7'); end;
+xlwrite([rootFold, filesep, flName], {'Seed:', inversion.seed}, sheetName, 'A3');
+xlwrite([rootFold, filesep, flName], {'Fixed wind:', inversion.wind}, sheetName, 'A4');
+if inversion.wind == 0
+    xlwrite([rootFold, filesep, flName], {'Wind range:', inversion.minWindDir, inversion.maxWindDir}, sheetName, 'A5');
+else
+    xlwrite([rootFold, filesep, flName], {'Wind file:', inversion.inFile.wind}, sheetName, 'A5');
+end
 
 % Write ranges
 var_names = {'Height', 'Mass', 'Alpha', 'Beta', 'Diff', 'FTT', 'Median', 'Sigma'};
 
 %writetable(ranges, [rootFold, filesep, flName], 'sheet', sheetName, 'Range', 'B8');
-xlwrite([rootFold, filesep, flName], var_names, sheetName, 'B8');
+try
+    xlwrite([rootFold, filesep, flName], var_names, sheetName, 'B8');
+catch ME
+    disp('There was an error writing the excel sheet. If you are updating an existing run, try and delete the existing sheet from the excel workbook first.')
+    return
+end
+
 xlwrite([rootFold, filesep, flName], {'Min'}, sheetName, 'A9');
 xlwrite([rootFold, filesep, flName], {'Max'}, sheetName, 'A10');
 xlwrite([rootFold, filesep, flName], [...
@@ -224,110 +237,40 @@ xlwrite([rootFold, filesep, flName], [...
 
 
     % Link to space images
-    xlwrite([rootFold, filesep, flName], {['=HYPERLINK("', fold, filesep, 'height.png", "Height")']}, sheetName, 'B11');
-    xlwrite([rootFold, filesep, flName], {['=HYPERLINK("', fold, filesep, 'mass.png", "Mass")']}, sheetName, 'C11');
-    xlwrite([rootFold, filesep, flName], {['=HYPERLINK("', fold, filesep, 'diff.png", "Diff")']}, sheetName, 'F11');
-    xlwrite([rootFold, filesep, flName], {['=HYPERLINK("', fold, filesep, 'ftt.png", "FTT")']}, sheetName, 'G11');
-    xlwrite([rootFold, filesep, flName], {['=HYPERLINK("', fold, filesep, 'med.png", "Median")']}, sheetName, 'H11');
-
-    if  inversion.batch && refine == 1
-        xlwrite([rootFold, filesep, flName], {['=HYPERLINK("', fold, filesep, 'height_fine.png", "Height")']}, sheetName, 'B12');
-        xlwrite([rootFold, filesep, flName], {['=HYPERLINK("', fold, filesep, 'mass_fine.png", "Mass")']}, sheetName, 'C12');
-        xlwrite([rootFold, filesep, flName], {['=HYPERLINK("', fold, filesep, 'diff_fine.png", "Diff")']}, sheetName, 'F12');
-        xlwrite([rootFold, filesep, flName], {['=HYPERLINK("', fold, filesep, 'ftt_fine.png", "FTT")']}, sheetName, 'G12');
-        xlwrite([rootFold, filesep, flName], {['=HYPERLINK("', fold, filesep, 'med_fine.png", "Median")']}, sheetName, 'H12');
-    end
+%     xlwrite([rootFold, filesep, flName], {['=HYPERLINK("', fold, filesep, 'height.png", "Height")']}, sheetName, 'B11');
+%     xlwrite([rootFold, filesep, flName], {['=HYPERLINK("', fold, filesep, 'mass.png", "Mass")']}, sheetName, 'C11');
+%     xlwrite([rootFold, filesep, flName], {['=HYPERLINK("', fold, filesep, 'diff.png", "Diff")']}, sheetName, 'F11');
+%     xlwrite([rootFold, filesep, flName], {['=HYPERLINK("', fold, filesep, 'ftt.png", "FTT")']}, sheetName, 'G11');
+%     xlwrite([rootFold, filesep, flName], {['=HYPERLINK("', fold, filesep, 'med.png", "Median")']}, sheetName, 'H11');
+% 
+%     if  inversion.batch && refine == 1
+%         xlwrite([rootFold, filesep, flName], {['=HYPERLINK("', fold, filesep, 'height_fine.png", "Height")']}, sheetName, 'B12');
+%         xlwrite([rootFold, filesep, flName], {['=HYPERLINK("', fold, filesep, 'mass_fine.png", "Mass")']}, sheetName, 'C12');
+%         xlwrite([rootFold, filesep, flName], {['=HYPERLINK("', fold, filesep, 'diff_fine.png", "Diff")']}, sheetName, 'F12');
+%         xlwrite([rootFold, filesep, flName], {['=HYPERLINK("', fold, filesep, 'ftt_fine.png", "FTT")']}, sheetName, 'G12');
+%         xlwrite([rootFold, filesep, flName], {['=HYPERLINK("', fold, filesep, 'med_fine.png", "Median")']}, sheetName, 'H12');
+%     end
 
 
 % Write fits
 %writetable(tb, [rootFold, filesep, flName], 'sheet', sheetName, 'Range', 'A14');
-xlwrite([rootFold, filesep, flName], {'Fit' 'Height' 'Mass' 'Alpha' 'Beta' 'Diff' 'FTT' 'MdPhi' 'SigPhi'}, sheetName, 'A14');
-xlwrite([rootFold, filesep, flName], fitResult(:,2:end), sheetName, 'A15');
+xlwrite([rootFold, filesep, flName], {'Run', 'Fit' 'Height' 'Mass' 'Alpha' 'Beta' 'Diff' 'FTT' 'MdPhi' 'SigPhi'}, sheetName, 'A14');
+xlwrite([rootFold, filesep, flName], fitResult, sheetName, 'A15');
 
 % Write figure links
 map_link = cell(size(fitResult,1), 3);
 for i = 1:size(fitResult,1)
-    rootdir = [fold, filesep, 'res_', num2str(log10(inversion.ranges(i).mass(1))), '_', num2str(inversion.ranges(i).plumeHeight(1)/1000), filesep];
-    map_link{i,1} = ['=HYPERLINK("', rootdir, 'tephra2.pdf"; "Map")'];
-    map_link{i,2} = ['=HYPERLINK("', rootdir, 'in_vs_out.png"; "In vs out")'];
-    map_link{i,3} = ['=HYPERLINK("', rootdir, 'plume.png"; "Plume")'];
+%     rootdir = [fold, filesep, 'mass', num2str(log10(inversion.ranges(i).mass(1))), '_ht', num2str(inversion.ranges(i).plumeHeight(1)/1000), filesep];
+%     map_link{i,1} = ['=HYPERLINK("file:', filesep, filesep, rootdir, 'tephra2.pdf", "Map")'];
+%     map_link{i,2} = ['=HYPERLINK("file:', filesep, filesep, rootdir, 'obsVScomp.pdf", "In vs out")'];
+%     map_link{i,3} = ['=HYPERLINK("file:', filesep, filesep, rootdir, 'plume.pdf", "Plume")'];
+%     map_link{i,3} = ['=HYPERLINK("file:', filesep, filesep, rootdir, 'wind.pdf", "Wind")'];
 end
 xlwrite([rootFold, filesep, flName], map_link, sheetName, 'J15');
 
 
 
-function plot_rmse(data, fold, type)
 
-data.Mass = log10(data.Mass);
-data.Fit  = log10(data.Fit);
-
-%% 1 Mass
-h1 = figure('units','normalized','outerposition',[0 0 1 1]);
-subplot(2,2,1); plot_inversion(data.Mass, data.Height, data.Fit, 'log10 Mass (kg)', 'Plume height (km asl)');
-subplot(2,2,2); plot_inversion(data.Mass, data.MdPhi, data.Fit, 'log10 Mass (kg)', 'Median \phi');
-subplot(2,2,3); plot_inversion(data.Mass, data.FTT, data.Fit, 'log10 Mass (kg)', 'Ftt (s)');
-subplot(2,2,4); plot_inversion(data.Mass, data.Diff, data.Fit, 'log10 Mass (kg)', 'Diffusion');
-
-%% 3 Med
-h3 = figure('units','normalized','outerposition',[0 0 1 1]);
-subplot(2,2,1); plot_inversion(data.MdPhi, data.Mass, data.Fit, 'Median \phi', 'log10 Mass (kg)');
-subplot(2,2,2); plot_inversion(data.MdPhi, data.Height, data.Fit, 'Median \phi', 'Plume height (km asl)');
-subplot(2,2,3); plot_inversion(data.MdPhi, data.FTT, data.Fit, 'Median \phi', 'Ftt (s)');
-subplot(2,2,4); plot_inversion(data.MdPhi, data.Diff, data.Fit, 'Median \phi', 'Diffusion');
-
-%% 4 FTT
-h4 = figure('units','normalized','outerposition',[0 0 1 1]);
-subplot(2,2,1); plot_inversion(data.FTT, data.Mass, data.Fit, 'Ftt (s)', 'log10 Mass (kg)');
-subplot(2,2,2); plot_inversion(data.FTT, data.Height, data.Fit, 'Ftt (s)', 'Plume height (km asl)');
-subplot(2,2,3); plot_inversion(data.FTT, data.MdPhi, data.Fit, 'Ftt (s)', 'Median \phi');
-subplot(2,2,4); plot_inversion(data.FTT, data.Diff, data.Fit, 'Ftt (s)', 'Diffusion');
-%%
-%% Save figures
-if type == 0
-    saveas(h1, [fold, filesep, 'mass.png']);
-    %saveas(h2, [fold, filesep, 'height.png']);
-    saveas(h3, [fold, filesep, 'med.png']);
-    saveas(h4, [fold, filesep, 'ftt.png']);
-    %saveas(h5, [fold, filesep, 'diff.png']);
-else
-    saveas(h1, [fold, filesep, 'mass_fine.png']);
-    %saveas(h2, [fold, filesep, 'height_fine.png']);
-    saveas(h3, [fold, filesep, 'med_fine.png']);
-    saveas(h4, [fold, filesep, 'ftt_fine.png']);
-    %saveas(h5, [fold, filesep, 'diff_fine.png']);
-end
-    
-function plot_inversion(xdata, ydata, zdata, xlab, ylab)
-
-if numel(xdata<10)
-    maxData = numel(xdata);
-else
-    maxData = 10;
-end
-
-cont    = 15;
-x_step  = (max(xdata) - min(xdata))/cont; 
-y_step  = (max(ydata) - min(ydata))/cont;
-
-x       = min(xdata):x_step:max(xdata);
-y       = min(ydata):y_step:max(ydata);
-
-[xi,yi] = meshgrid(x,y) ;
-zi      = griddata(xdata,ydata,zdata,xi,yi) ;
-
-surfc(xi(1,:),yi(:,1),zi);  
-axis square, hold on, box on
-
-z_norm = linspace(40, 10, length(xdata));
-scatter3(xdata, ydata, zdata, z_norm, 'k', 'fill', 'o', 'MarkerEdgeColor', 'k')
-text(xdata(1:maxData),ydata(1:maxData),zdata(1:maxData), cellstr(sprintfc('%d',[1:maxData]')), 'FontSize', 11, 'Color', 'r', 'FontWeight', 'bold');
-
-
-xlabel(xlab);
-ylabel(ylab);
-
-c = colorbar;
-set(get(c,'ylabel'),'string','Log10 RMSE','fontsize',10);
 
 function R = getBnd(data)
     R = [min(data(:,1)); max(data(:,2))];
@@ -360,7 +303,7 @@ function obsVScomp(obs, comp)
 
 maxVal = sqrt(max(max([obs,comp])));
 
-figure, hold on;
+figure('Visible', 'off'), hold on;
 line([0,maxVal], [0,maxVal], 'Color', 'k', 'LineWidth',1);
 scatter(sqrt(obs), sqrt(comp), 35, log10(sqrt(abs(obs-comp))), 'filled', 'MarkerEdgeColor', 'k');
 axis square tight, box on
@@ -370,7 +313,7 @@ ylabel('Sqrt computed accumulation (kg/m^2)');
 
 % Plot wind
 function plotWind(height, dir, speed)
-figure;
+figure('Visible', 'off');
 subplot(1,2,1)
 plot(speed, height, '-r+', 'LineWidth', 1, 'MarkerEdgeColor', 'k');
 xlabel('Wind speed (m/s)');
@@ -380,6 +323,20 @@ plot(dir, height, '-r+', 'LineWidth', 1, 'MarkerEdgeColor', 'k');
 xlabel('Direction (degree from N)');
 xlim([0,360])
 a.XTick = [0,90,180,270];
+
+% Plot TGSD
+function plotTGSD(mu, sigma)
+range = -20:20;
+dist  = normpdf(range, mu, sigma);
+dist2 = normcdf(range, mu, sigma);
+idx = dist>1e-3;
+figure('Visible', 'off');
+bar(range(idx), dist(idx).*100);
+xlabel('\phi')
+ylabel('Wt. %')
+yyaxis right
+plot(range(idx), dist2(idx).*100, '-k', 'Linewidth',1);
+
 
 % Save figure
 function saveFig(f, pth, figFormat)
@@ -398,4 +355,4 @@ function flCell = prepareASCII(flPath)
     flCell  = textscan(fid, '%s', 'delimiter', '\n', 'MultipleDelimsAsOne',1);
     flCell  = flCell{1};
     fclose(fid);
-    
+     

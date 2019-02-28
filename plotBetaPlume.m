@@ -11,7 +11,7 @@
 %
 % Written by S. Biass, Jan 2018
 
-function plotBetaPlume(alpha, beta, height)
+function plotBetaPlume(alpha, beta, height, varargin)
 
 if numel(height) == 1
     height = [0, height];
@@ -21,7 +21,14 @@ if numel(alpha) ~= numel(beta)
     error('Alpha and beta should have the same size')
 end
 
-x = linspace(0,1,50);
+% Control if figure is actually displayed. Useful for inversion
+vis = 'on';
+if nargin>3 && nnz(strcmpi(varargin, '-noplot'))
+    vis = 'off';
+end
+
+
+x = linspace(0,1,25);
 h = height(1) + x.*(height(2)-height(1));
 
 stor = zeros(numel(x), numel(alpha), 2);
@@ -35,7 +42,7 @@ end
 stor(isinf(stor(:,:,1))) = nan;
 stor(:,:,1) = stor(:,:,1)./nansum(stor(:,:,1));
 
-figure;
+figure('Visible', vis);
 subplot(2,1,1)
 plot(stor(:,:,1).*100, h);
 grid on

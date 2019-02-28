@@ -19,6 +19,7 @@ function [E,N,M,Carea,Pmass,cont,varargout] = plotT2(data, varargin)
 % Single input flags
 % - '-noplot':  Kills map display
 % - '-raster':  Writes an ArcMap ASCII raster as a text file in UTM coordinates
+% - '-novis':   Map is plotted but turned off
 %
 % Outputs
 % [E,N,M,A]         = plotT2(...)       % Return gridded easting, northing, mass accumulation and isomass areas (km2)
@@ -39,6 +40,7 @@ raster  = 0;
 vent    = [];
 points  = [];
 minVal  = 0;
+vis     = 'on';
 
 if nargin == 0
     [flName,dirName] = uigetfile('*.*', 'Select the Tephra2 output file');
@@ -63,6 +65,9 @@ else
     if nnz(strcmpi(varargin, '-noplot'))
         noPlot = 1;
     end
+    if nnz(strcmpi(varargin, '-novis'))
+        vis = 'off';
+    end
     if nnz(strcmpi(varargin, '-raster'))
         raster = 1;
     end
@@ -79,11 +84,6 @@ try
     data = load(data);                  % If the Tephra2 output file does not have a header
 catch ME
     data = dlmread(data, ' ', 1, 0);
-end
-
-% In case plotting output from TephraProb, add an empty column
-if size(data,2) == 3
-    data = [data(:,1:2), zeros(size(data,1),1), data(:,3)];
 end
 
 % Prepare the data
@@ -148,7 +148,7 @@ end
 
 % Plot figure
 if noPlot == 0
-    figure;
+    figure('Visible', vis);
     res         = (XX(1,2)-XX(1,1))/2;
     hd          = pcolor(XX-res,YY-res,M); shading flat; hold on;
     [c,h]       = contour(XX,YY,M,cnt, 'Color', 'k');
@@ -167,7 +167,7 @@ if noPlot == 0
     end
     
     if exist('plot_google_map', 'file') && exist('LT', 'var')
-        plot_google_map('maptype', 'terrain');
+        %plot_google_map('maptype', 'terrain');
         % Plot grid extent
         gX = [XX(1,1), XX(1,end), XX(end,end), XX(end,1), XX(1,1)];
         gY = [YY(1,1), YY(1,end), YY(end,end), YY(end,1), YY(1,1)];
