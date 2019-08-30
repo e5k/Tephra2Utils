@@ -17,8 +17,7 @@ plot(range(idx), dist2(idx).*100, '-k', 'Linewidth',1);
 
 TGSD = [range(idx)', dist(idx)'.*100];
 
-% Correct residual
-TGSD(:,2) = TGSD(:,2) + (100-sum(TGSD(:,2)))/size(TGSD,1);
+TGSD = 100-sum(TGSD(:,2))/size(TGSD,2)
 
 % Write to Fall3D
 dlmwrite('fall3d.tgsd', size(TGSD,1), 'delimiter', '\t');
