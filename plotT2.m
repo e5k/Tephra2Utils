@@ -15,6 +15,7 @@ function [E,N,M,Carea,Pmass,cont,varargout] = plotT2(data, varargin)
 % - 'vent':     Vent coordinates, entered as [easting, northing]
 % - 'minVal':   Minimum value to be represented on the continuous color surface (kg/m2)
 % - 'points':   Specify points to plot as a 2-columns [easting,northing] matrix. If entered as a 3-columns [easting,northing,value] matrix, value is used as a label
+% - 'cmap':     Matlab colormap (string)
 %
 % Single input flags
 % - '-noplot':  Kills map display
@@ -41,7 +42,7 @@ vent    = [];
 points  = [];
 minVal  = 0;
 vis     = 'on';
-
+cmap    = [];
 if nargin == 0
     [flName,dirName] = uigetfile('*.*', 'Select the Tephra2 output file');
     if flName == 0; return; end
@@ -60,6 +61,8 @@ else
             minVal = varargin{i+1};
         elseif strcmpi(varargin{i}, 'points')
             points = varargin{i+1};
+        elseif strcmpi(varargin{i}, 'cmap')
+            cmap = varargin{i+1};
         end
     end
     if nnz(strcmpi(varargin, '-noplot'))
@@ -151,6 +154,9 @@ if noPlot == 0
     figure('Visible', vis);
     res         = (XX(1,2)-XX(1,1))/2;
     hd          = pcolor(XX-res,YY-res,M); shading flat; hold on;
+    if ~isempty(cmap)
+        colormap(cmap);
+    end
     [c,h]       = contour(XX,YY,M,cnt, 'Color', 'k');
     clabel(c,h, cnt, 'LabelSpacing', 1000, 'FontWeight', 'bold')
     set(hd, 'FaceAlpha', 0.5)
