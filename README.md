@@ -22,6 +22,9 @@ Process the output of inversion runs described [here](https://e5k.github.io/code
 ### plotT2Inversion.m
 A script to pliot the results of inversion runs.
 
+### plotWind.m
+Plots 3-columns, tab-delimited ascii wind profiles.
+
 ## Versions
 
 #### v1.0 (pre-Nov 18)
