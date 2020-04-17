@@ -1,4 +1,4 @@
-function [E,N,M,Carea,Pmass,cont,varargout] = plotT2(data, varargin)
+function [f,E,N,M,Carea,Pmass,cont,varargout] = plotT2(data, varargin)
 % PLOTT2(path_to_file, ...)
 % The function PLOTT2 plots the output of Tephra2 on a map
 % path_to_file is a string containing the path to the output file
@@ -15,7 +15,6 @@ function [E,N,M,Carea,Pmass,cont,varargout] = plotT2(data, varargin)
 % - 'vent':     Vent coordinates, entered as [easting, northing]
 % - 'minVal':   Minimum value to be represented on the continuous color surface (kg/m2)
 % - 'points':   Specify points to plot as a 2-columns [easting,northing] matrix. If entered as a 3-columns [easting,northing,value] matrix, value is used as a label
-% - 'cmap':     Matlab colormap (string)
 %
 % Single input flags
 % - '-noplot':  Kills map display
@@ -23,7 +22,11 @@ function [E,N,M,Carea,Pmass,cont,varargout] = plotT2(data, varargin)
 % - '-novis':   Map is plotted but turned off
 %
 % Outputs
-% [E,N,M,A]         = plotT2(...)       % Return gridded easting, northing, mass accumulation and isomass areas (km2)
+% - f:          Figure handle. Nan if -noplot
+% - E, N:       Easting and northing matrices    
+% - M:          Mass accumulation matrix (kg/m2)
+% - Carea,cont: Isomass area (km2) and contour value (kg/m2)
+
 % [E,N,M,A,Lat,Lon] = plotT2(...)       % If 'zone' is specified, also returns the gridded latitude/longitude
 %
 % Examples
@@ -42,7 +45,7 @@ vent    = [];
 points  = [];
 minVal  = 0;
 vis     = 'on';
-cmap    = [];
+
 if nargin == 0
     [flName,dirName] = uigetfile('*.*', 'Select the Tephra2 output file');
     if flName == 0; return; end
@@ -61,8 +64,6 @@ else
             minVal = varargin{i+1};
         elseif strcmpi(varargin{i}, 'points')
             points = varargin{i+1};
-        elseif strcmpi(varargin{i}, 'cmap')
-            cmap = varargin{i+1};
         end
     end
     if nnz(strcmpi(varargin, '-noplot'))
@@ -151,12 +152,9 @@ end
 
 % Plot figure
 if noPlot == 0
-    figure('Visible', vis);
+    f = figure('Visible', vis);
     res         = (XX(1,2)-XX(1,1))/2;
     hd          = pcolor(XX-res,YY-res,M); shading flat; hold on;
-    if ~isempty(cmap)
-        colormap(cmap);
-    end
     [c,h]       = contour(XX,YY,M,cnt, 'Color', 'k');
     clabel(c,h, cnt, 'LabelSpacing', 1000, 'FontWeight', 'bold')
     set(hd, 'FaceAlpha', 0.5)
@@ -172,7 +170,7 @@ if noPlot == 0
         end
     end
     
-    if exist('plot_google_map', 'file') && exist('LT', 'var')
+    if exist('plot_google_map', 'file')==2 && exist('LT', 'var')
         %plot_google_map('maptype', 'terrain');
         % Plot grid extent
         gX = [XX(1,1), XX(1,end), XX(end,end), XX(end,1), XX(1,1)];
@@ -192,6 +190,8 @@ if noPlot == 0
     xlabel(xl);
     ylabel(yl);
     set(gca, 'Layer', 'top');
+else
+    f = nan;
 end
 
 %% Write raster
@@ -204,11 +204,14 @@ end
 if nargout > 0
     varargout = cell(nargout,1);
     for i = 1:nargout
-        if      i == 1; varargout{i} = E;
-        elseif  i == 2; varargout{i} = N;
-        elseif  i == 3; varargout{i} = M;
-        elseif  i == 4 && exist('LT', 'var'); varargout{i} = LT;
-        elseif  i == 5 && exist('LT', 'var'); varargout{i} = LN;
+        if      i == 1; varargout{i} = f;
+        elseif  i == 2; varargout{i} = E;
+        elseif  i == 3; varargout{i} = N;
+        elseif  i == 4; varargout{i} = M;
+        elseif  i == 5; varargout{i} = Carea;
+        elseif  i == 6; varargout{i} = cont;
+        elseif  i == 7 && exist('LT', 'var'); varargout{i} = LT;
+        elseif  i == 8 && exist('LT', 'var'); varargout{i} = LN;
         end
     end
 end
